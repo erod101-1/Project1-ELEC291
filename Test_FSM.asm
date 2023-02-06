@@ -14,10 +14,10 @@ temp_cool: ds 1
 ; Current stage, temperature, time on LCD
 
 clr a
-mov state, a // start from state 0, start/rest state
+mov state, a ; start from state 0, start/rest state
 
 forever: 
-  mov a, state // to check which state its in
+  mov a, state ; to check which state its in
 state0: ;start/rest state
   cjne a, #0, state1 //for every state, it checks, is this the state were in? if not move to the next state, otherwise continue.
   mov pwm, #0
@@ -27,13 +27,13 @@ state0: ;start/rest state
 state0_done:
   ljmp forever
 
-state1: ;Ramp to soak (heating up)
+state1: ; Ramp to soak (heating up)
   cjne a, #1, state2
   mov pwm, #100
   mov sec, #0
   mov a, temp_soak
   clr c
-  subb a, temp // a = a - c - temp, c is a carry flag. If temp is greater than a, then c is set to something other than 0, moving on to state 2. 
+  subb a, temp ; a = a - c - temp, c is a carry flag. If temp is greater than a, then c is set to something other than 0, moving on to state 2. 
   jnc state1_done //if state is 0, finish state_1 and repeat it. 
   mov state, #2
 state1_done:
