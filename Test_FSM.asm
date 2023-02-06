@@ -11,7 +11,7 @@ state0:
   jb PB6, state0_done
   jnb PB6, $ ; Wait for key release
   mov state, #1
-  state0_done:
+state0_done:
   ljmp forever
 
 state1:
@@ -23,7 +23,7 @@ state1:
   subb a, temp
   jnc state1_done
   mov state, #2
-  state1_done:
+state1_done:
   ljmp forever
 
 state2:
@@ -34,5 +34,5 @@ state2:
   subb a, sec
   jnc state2_done
   mov state, #3
-  state2_done:
+state2_done:
   ljmp forever
