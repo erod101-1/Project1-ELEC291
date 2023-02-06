@@ -6,6 +6,11 @@ temp_refl: ds 1
 time_refl: ds 1
 temp_cooling: ds 1
 
+// setting parameters with inputs on LCD
+// defining inputs (buttons)
+// second incrementing
+// pwm to SSR 
+
 clr a
 mov state, a
 
