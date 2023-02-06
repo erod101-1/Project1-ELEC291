@@ -5,6 +5,11 @@ Time_soak: ds 1
 Temp_refl: ds 1
 Time_refl: ds 1
 
+clr a
+mov state, a
+
+forever:
+  mov a, state
 state0:
   cjne a, #0, state1
   mov pwm, #0
@@ -36,3 +41,8 @@ state2:
   mov state, #3
 state2_done:
   ljmp forever
+  
+state3:
+  cjne a, #3, state4
+  mov pwm, #100
+  mov a, 
