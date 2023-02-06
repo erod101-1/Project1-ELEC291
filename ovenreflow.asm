@@ -83,8 +83,15 @@ mf: dbit 1
 half_seconds_flag: dbit 1 
 
 CSEG
-;                        1234567890123456 ;
-Test:       db ' Test',0
+;                  1234567890123456 ;
+Temp:           db ' Temperature: ',0
+Degrees_C:      db 'C',0
+Ramp_to_soak:   db 'RAMP TO SOAK',0
+Preheat:        db 'Preheat TO SOAK',0
+Ramp_to_peak:  db 'RAMP TO PEAK',0
+Preflow:       db 'PREFLOW',0
+Cooling:       db 'Cooling',0 
+; Will add way more messages as we go
 
 ;Pin Assignments
 ; These 'equ' must match the hardware wiring
@@ -97,7 +104,7 @@ LCD_D5 equ P3.5
 LCD_D6 equ P3.6
 LCD_D7 equ P3.7
 CE_ADC EQU P2.0
-UPDOWN EQU P0
+UPDOWN EQU P0.0
 SOUND_OUT     equ P1.1
 MY_MOSI   EQU  P2.1 
 MY_MISO   EQU  P2.2
@@ -181,9 +188,9 @@ Timer2_ISR:
 Inc_Done:
 	; Check if half second has passed
 	mov a, Count1ms+0
-	cjne a, #low(500), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
+	cjne a, #low(1000), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
-	cjne a, #high(500), Timer2_ISR_done
+	cjne a, #high(1000), Timer2_ISR_done ; Count 1 second
 	
 	; 500 milliseconds have passed.  Set a flag so the main program knows
 	setb half_seconds_flag ; Let the main program know half second had passed
@@ -261,6 +268,14 @@ Send_BCD mac
     ret
 ;**********
 
+
+Display_time:
+    mov BCD_counter, #0x00
+    Set_Cursor(1,1) ; Change this
+    Display_BCD(BCD_counter)
+    ret
+
 ; Main Program
 MainProgram:
+   lcall Display_time
    sjmp $ 
