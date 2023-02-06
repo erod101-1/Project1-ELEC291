@@ -1,9 +1,10 @@
 DSEG ; Before the state machine!
 state: ds 1
 temp_soak: ds 1
-Time_soak: ds 1
-Temp_refl: ds 1
-Time_refl: ds 1
+time_soak: ds 1
+temp_refl: ds 1
+time_refl: ds 1
+temp_cooling: ds 1
 
 clr a
 mov state, a
@@ -45,4 +46,6 @@ state2_done:
 state3:
   cjne a, #3, state4
   mov pwm, #100
-  mov a, 
+  mov a, #220
+  clr c
+  subb a, temp
