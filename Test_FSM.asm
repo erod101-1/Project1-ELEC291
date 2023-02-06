@@ -51,6 +51,7 @@ state2_done:
 state3:
   cjne a, #3, state4
   mov pwm, #100
-  mov a, #220
+  mov a, temp_refl
   clr c
   subb a, temp
+  
