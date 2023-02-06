@@ -1,23 +1,29 @@
 $MODLP51RC2
 
-org 0000H
+Button1 equ P2.1
+
+
+
+; Reset vector
+org 0x000H
     ljmp myprogram
 
-WaitHalfSec:
-    mov R2, #89
-L3: mov R1, #250
-L2: mov R0, #166
-L1: djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
-    djnz R1, L2 ; 22.51519us*250=5.629ms
-    djnz R2, L3 ; 5.629ms*89=0.5s (approximately)
-    ret
-	
+$NOLIST
+$include(Project1.inc) ; A library of LCD related functions and utility macros
+$LIST
+
 myprogram:
     mov SP, #7FH
     mov P3M0, #0 ; Configure P3 in bidirectional mode
     mov P3M1, #0 ; Configure P3 in bidirectional mode
 M0:
-    cpl P3.7
-    lcall WaitHalfSec
-    sjmp M0
+	;Checks for Button1 Press to toggle oven
+	jb Button1, M0
+	Wait_Milli_Seconds(#50)	
+	jb Button1, M0
+	jnb Button1, $
+	
+	cpl p3.7 ;Turns on Oven
+  	sjmp M0
+
 END
