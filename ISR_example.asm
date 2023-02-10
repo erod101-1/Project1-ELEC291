@@ -1,25 +1,21 @@
+; ISR_example.asm: a) Increments/decrements a BCD variable every half second using
+; an ISR for timer 2; b) Generates a 2kHz square wave at pin P1.1 using
+; an ISR for timer 0; and c) in the 'main' loop it displays the variable
+; incremented/decremented using the ISR for timer 2 on the LCD.  Also resets it to 
+; zero if the 'BOOT' pushbutton connected to P4.5 is pressed.
 $NOLIST
 $MODLP51RC2
 $LIST
 
 CLK           EQU 22118400 ; Microcontroller system crystal frequency in Hz
-TIMER0_RATE   EQU 4096     ; 2048Hz squarewave
+TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
 TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-Time_Speed EQU 100
-
-BOOT_BUTTON equ P4.5
-Button1 equ P2.1
-Button2 equ P2.1
-Button3 equ P2.1
-Button4 equ P2.1
-
-
-SOUND_OUT equ P1.1
-UPDOWN equ P0.0
-OvenPin equ P2.2
+BOOT_BUTTON   equ P4.5
+SOUND_OUT     equ P1.1
+UPDOWN        equ P0.0
 
 ; Reset vector
 org 0x0000
@@ -51,30 +47,13 @@ org 0x002B
 
 ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
 dseg at 0x30
-
-
-BCD_counter:  ds 1 ;The BCD counter incrememted in the ISR and displayed in the main loop
-Count1ms:     ds 2 ;Used to determine when half second has passed
-
-mode: ds 1 ;display time mode=0, set time mode=1 or set alarm mode=2.
-
-Selected: ds 1 ;0 = hr, 1 = min, 2 = Am/Pm, 3 = Done
-
-PowerPercent: ds 1 ; 0 = 0%, 1 = 20% ... 5 = 100%
-
-TenthSeconds: ds 1
-Seconds: ds 1 ;Seconds
-Minutes: ds 1 ;Minutes
-
-AlarmSec: ds 1 ;Seconds Alarm
-AlarmMin: ds 1 ;Minutes Alarm
-
+Count1ms:     ds 2 ; Used to determine when half second has passed
+BCD_counter:  ds 1 ; The BCD counter incrememted in the ISR and displayed in the main loop
 
 ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
 ; instructions with these variables.  This is how you define a 1-bit variable:
 bseg
-seconds_flag: dbit 1 ; Set to one in the ISR every time 500 ms had passed
-
+half_seconds_flag: dbit 1 ; Set to one in the ISR every time 500 ms had passed
 
 cseg
 ; These 'equ' must match the hardware wiring
@@ -90,11 +69,8 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-;1234567890123456    <- This helps determine the location of the counter
-
-Initial_Message:  db '     :  :       ', 0
-
-CLS: db '                ', 0
+;                     1234567890123456    <- This helps determine the location of the counter
+Initial_Message:  db 'BCD_counter: xx ', 0
 
 ;---------------------------------;
 ; Routine to initialize the ISR   ;
@@ -163,67 +139,35 @@ Timer2_ISR:
 	inc Count1ms+1
 
 Inc_Done:
-	; Check if second has passed
+	; Check if half second has passed
 	mov a, Count1ms+0
-	cjne a, #low(Time_Speed), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
+	cjne a, #low(500), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
-	cjne a, #high(Time_Speed), Timer2_ISR_done
+	cjne a, #high(500), Timer2_ISR_done
 	
-	;1000 milliseconds have passed.  Set a flag so the main program knows
-	setb seconds_flag ;Let the main program know (Time_Speed) ms have passed
-	
-	;cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
-	
+	; 500 milliseconds have passed.  Set a flag so the main program knows
+	setb half_seconds_flag ; Let the main program know half second had passed
+	cpl TR0 ; Enable/disable timer/counter 0. This line creates a beep-silence-beep-silence sound.
 	; Reset to zero the milli-seconds counter, it is a 16-bit variable
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
-	
-	;1/10 Second Increment
-	mov 	a, TenthSeconds
-    cjne 	a, #0x9, IncTenthSeconds
-    mov 	a, #0 
-    da 		a
-    mov 	TenthSeconds, a
-	
-	;Seconds Increment
-	mov 	a, Seconds
-	cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
-    mov 	a, #0 
-    da 		a
-    mov 	Seconds, a
-   
-    
+	; Increment the BCD counter
+	mov a, BCD_counter
 	jnb UPDOWN, Timer2_ISR_decrement
 	add a, #0x01
-	ljmp Timer2_ISR_da
-	
+	sjmp Timer2_ISR_da
 Timer2_ISR_decrement:
 	add a, #0x99 ; Adding the 10-complement of -1 is like subtracting 1.
 Timer2_ISR_da:
 	da a ; Decimal adjust instruction.  Check datasheet for more details!
-	mov Seconds, a
+	mov BCD_counter, a
 	
 Timer2_ISR_done:
 	pop psw
 	pop acc
 	reti
 
-IncTenthSeconds:
-	add a, #0x01
-	da a
-	mov TenthSeconds, a
-	cjne a, PowerPercent, Inc_Done
-	setb OvenPin
-	ljmp Inc_Done
-
-IncSeconds:
-	clr OvenPin
-	add a, #0x01
-	da a
-	mov Seconds, a
-	ljmp Inc_Done
-	
 ;---------------------------------;
 ; Main program. Includes hardware ;
 ; initialization and 'forever'    ;
@@ -237,17 +181,35 @@ main:
     ; In case you decide to use the pins of P0, configure the port in bidirectional mode:
     mov P0M0, #0
     mov P0M1, #0
-	mov PowerPercent, #5
-
-    setb EA  ; Enable Global interrupts
+    setb EA   ; Enable Global interrupts
     lcall LCD_4BIT
-  	
     ; For convenience a few handy macros are included in 'LCD_4bit.inc':
 	Set_Cursor(1, 1)
     Send_Constant_String(#Initial_Message)
-    setb seconds_flag
+    setb half_seconds_flag
+	mov BCD_counter, #0x00
+	
 	; After initialization the program stays in this 'forever' loop
 loop:
-	ljmp loop
-
+	jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
+	Wait_Milli_Seconds(#50)	; Debounce delay.  This macro is also in 'LCD_4bit.inc'
+	jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
+	jnb BOOT_BUTTON, $		; Wait for button release.  The '$' means: jump to same instruction.
+	; A valid press of the 'BOOT' button has been detected, reset the BCD counter.
+	; But first stop timer 2 and reset the milli-seconds counter, to resync everything.
+	clr TR2                 ; Stop timer 2
+	clr a
+	mov Count1ms+0, a
+	mov Count1ms+1, a
+	; Now clear the BCD counter
+	mov BCD_counter, a
+	setb TR2                ; Start timer 2
+	sjmp loop_b             ; Display the new value
+loop_a:
+	jnb half_seconds_flag, loop
+loop_b:
+    clr half_seconds_flag ; We clear this flag in the main loop, but it is set in the ISR for timer 2
+	Set_Cursor(1, 14)     ; the place in the LCD where we want the BCD counter value
+	Display_BCD(BCD_counter) ; This macro is also in 'LCD_4bit.inc'
+    ljmp loop
 END
