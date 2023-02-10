@@ -19,7 +19,7 @@ Button4 equ P2.1
 
 SOUND_OUT equ P1.1
 UPDOWN equ P0.0
-OvenPin equ P4.6
+OvenPin equ P2.2
 
 ; Reset vector
 org 0x0000
@@ -61,7 +61,6 @@ mode: ds 1 ;display time mode=0, set time mode=1 or set alarm mode=2.
 Selected: ds 1 ;0 = hr, 1 = min, 2 = Am/Pm, 3 = Done
 
 PowerPercent: ds 1 ; 0 = 0%, 1 = 20% ... 5 = 100%
-PowerPercentCount: ds 1
 
 TenthSeconds: ds 1
 Seconds: ds 1 ;Seconds
@@ -209,7 +208,7 @@ Inc_Done:
 	
 	;Seconds Increment
 	mov 	a, Seconds
-    cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
+	cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
     mov 	a, #0 
     da 		a
     mov 	Seconds, a
@@ -251,26 +250,16 @@ Timer2_ISR_done:
 	pop acc
 	reti
 
-OvenOff:
-	clr OvenPin
-	ljmp Inc_Done
-
 IncTenthSeconds:
 	add a, #0x01
 	da a
 	mov TenthSeconds, a
-
-	mov a, PowerPercentCount
-
-	add a, #0x99
-	da a
-	mov PowerPercentCount, a
-	cjne a, PowerPercent, OvenOff
-
-	ljmp Inc_Done	
+	cjne a, PowerPercent, Inc_Done
+	setb OvenPin
+	ljmp Inc_Done
 
 IncSeconds:
-	setb OvenPin
+	clr OvenPin
 	add a, #0x01
 	da a
 	mov Seconds, a
@@ -343,7 +332,7 @@ main:
     ; In case you decide to use the pins of P0, configure the port in bidirectional mode:
     mov P0M0, #0
     mov P0M1, #0
-	mov PowerPercentCount, #5
+	mov PowerPercent, #5
     
     setb TR0
 
