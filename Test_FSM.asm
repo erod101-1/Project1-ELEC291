@@ -76,6 +76,23 @@ Second_Display_2: db 'RSec:xxx'
 Third_Display_1:  db '' // for running time, temp, reflow stage, etc. 
 Third_Display_2:  db ''
 
+; 
+Increment_Parameter MAC
+	mov b,#%0
+	lcall _Increment_Parameter
+ENDMAC
+
+_Increment_Parameter:
+	mov a, b
+	add a, #0x01
+	da a 
+	mov b, a
+	mov a, b
+	cjne a, #0x400, 
+	clr a 
+	mov Minute_counter, a
+
+
 ; setting parameters with inputs on LCD
 ; defining inputs (buttons)
 ; second incrementing (using lab 2 timer?)
