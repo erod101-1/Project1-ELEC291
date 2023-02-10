@@ -191,31 +191,60 @@
 0000            190   CCF1           BIT 0xd9
 0000            191   CCF0           BIT 0xd8
 0000              2   
-0000              3   Button1 equ P2.1
-0000              4   
-0000              5   
+0000              3   CLK           EQU 22118400 ; Microcontroller system crystal frequency in Hz
+0000              4   TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+0000              5   TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 0000              6   
-0000              7   ; Reset vector
-0000              8   org 0x000H
-0000 020021       9       ljmp myprogram
-0003             10   
-                 12   $LIST
-0021             14   
-0021             15   myprogram:
-0021 75817F      16       mov SP, #7FH
-0024 75C600      17       mov P3M0, #0 ; Configure P3 in bidirectional mode
-0027 75C700      18       mov P3M1, #0 ; Configure P3 in bidirectional mode
-002A             19   M0:
-002A             20            ;Checks for Button1 Press to toggle oven
-002A 20A1FD      21            jb Button1, M0
-002D C002        22            push AR2
-002F 7A32        22            mov R2, #50
-0031 12000E      22            lcall ?Wait_Milli_Seconds
-0034 D002        22            pop AR2         
-0036 20A1F1      23            jb Button1, M0
-0039 30A1FD      24            jnb Button1, $
-003C             25            
-003C B2B7        26            cpl p3.7 ;Turns on Oven
-003E 80EA        27            sjmp M0
-0040             28   
-0040             29   EN
+0000              7   Button1 equ P2.1
+0000              8   OVEN_PIN equ P1.1
+0000              9   
+0000             10   ; Reset vector
+0000             11   org 0x000H
+0000 020048      12       ljmp myprogram
+0003             13   
+000B             14   org 0x000B
+000B 020045      15            ljmp Timer0_ISR
+000E             16   
+000E             17   
+                 19   $LIST
+002C             21   
+002C             22   Timer0_Init:
+002C E589        23            mov a, TMOD
+002E 54F0        24            anl a, #0xf0 ; 11110000 Clear the bits for timer 0
+0030 4401        25            orl a, #0x01 ; 00000001 Configure timer 0 as 16-timer
+0032 F589        26            mov TMOD, a
+0034 758CEA      27            mov TH0, #high(TIMER0_RELOAD)
+0037 758AE8      28            mov TL0, #low(TIMER0_RELOAD)
+003A             29            ; Set autoreload value
+003A 75F4EA      30            mov RH0, #high(TIMER0_RELOAD)
+003D 75F2E8      31            mov RL0, #low(TIMER0_RELOAD)
+0040             32            ; Enable the timer and interrupts
+0040 D2A9        33       setb ET0  ; Enable timer 0 interrupt
+0042 D28C        34       setb TR0  ; Start timer 0
+0044 22          35            ret
+0045             36            
+0045             37   Timer0_ISR:
+0045             38            ;clr TF0  ; According to the data sheet this is done for us already.
+0045 B291        39            cpl OVEN_PIN ; Connect speaker to P1.1!
+0047 32          40            reti
+0048             41   
+0048             42   myprogram:
+0048 75817F      43       mov SP, #7FH
+004B 75C600      44       mov P3M0, #0 ; Configure P3 in bidirectional mode
+004E 75C700      45       mov P3M1, #0 ; Configure P3 in bidirectional mode
+0051 12002C      46       lcall Timer0_Init
+0054 D28C        47       setb TR0
+0056             48   M0:
+0056             49            ;Checks for Button1 Press to toggle oven
+0056 20A1FD      50            jb Button1, M0
+0059 C002        51            push AR2
+005B 7A32        51            mov R2, #50
+005D 120019      51            lcall ?Wait_Milli_Seconds
+0060 D002        51            pop AR2         
+0062 20A1F1      52            jb Button1, M0
+0065 30A1FD      53            jnb Button1, $
+0068             54            
+0068 B28C        55            cpl TR0 ;Turns on Oven
+006A 80EA        56            sjmp M0
+006C             57   
+006C             58   EN
