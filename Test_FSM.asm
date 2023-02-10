@@ -69,9 +69,9 @@ $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $LIST
 
-Launch_Message_1: db 'SCel:xxx x'
+Launch_Message_1: db 'SCel:xxx'
 Launch_Message_2: db 'SSec:xxx'
-Second_Display_1: db 'RCel:xxx x'
+Second_Display_1: db 'RCel:xxx'
 Second_Display_2: db 'RSec:xxx'
 Third_Display_1:  db '' // for running time, temp, reflow stage, etc. 
 Third_Display_2:  db ''
@@ -95,12 +95,20 @@ display_1:
   Set_Cursor(2,1)
   Send_Constant_String(#Launch_Message_2)
   
+  
+  
   Wait_Milli_Seconds(#250)
   
   clr a
   mov state, a ; start from state 0, start/rest state
   
-  jb INC, inc_temp_soak
+  jnb INC, inc_soak_temp
+  Wait_Milli_Seconds(#50)
+ 
+ inc_soak_temp: 
+   mov a, soak_temp
+  
+  
 
   forever: 
     mov a, state ; to check which state its in
