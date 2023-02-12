@@ -136,10 +136,15 @@ IncTenthSeconds:
 	ljmp Inc_Done
 
 IncSeconds:
-	clr OvenPin
 	add a, #0x01
 	da a
 	mov seconds, a
+	mov a, PowerPercent
+	cjne a, #0x00, OvenOn
+	ljmp Inc_Done
+
+OvenOn:
+	clr OvenPin
 	ljmp Inc_Done
 
 Timer2_ISR_decrement:
@@ -166,7 +171,7 @@ main:
     mov P0M0, #0
     mov P0M1, #0
 
-	mov PowerPercent, #1 ;Power Percent Mode set, 0 = 0%, 1 = 10% ... 10 = 100%
+	mov PowerPercent, #8 ;Power Percent Mode set, 0 = 0%, 1 = 10% ... 10 = 100%
 	mov tenth_seconds, #0
 	mov seconds, #0
 
@@ -205,6 +210,8 @@ loop_b:
 	Display_BCD(seconds)
 	Set_Cursor(1, 8)
     Send_Constant_String(#Initial_Message)
+	Set_Cursor(2,5)
+	Display_BCD(PowerPercent)
 
     ljmp loop
 END

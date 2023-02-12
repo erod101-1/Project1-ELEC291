@@ -9,7 +9,7 @@
 0000             11   
 0000             12   ; Reset vector
 0000             13   org 0x0000
-0000 020152      14       ljmp main
+0000 02015A      14       ljmp main
 0003             15   ; External interrupt 0 vector (not used in this code)
 0003             16   org 0x0003
 0003 32          17            reti
@@ -92,9 +92,9 @@
 0105             96   Inc_Done:
 0105             97            ; Check if half second has passed
 0105 E530        98            mov a, Count1ms+0
-0107 B46443      99            cjne a, #low(100), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
+0107 B4644B      99            cjne a, #low(100), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 010A E531       100            mov a, Count1ms+1
-010C B4003E     101            cjne a, #high(100), Timer2_ISR_done
+010C B40046     101            cjne a, #high(100), Timer2_ISR_done
 010F            102            
 010F            103            ; 100 milliseconds have passed.  Set a flag so the main program knows
 010F            104            
@@ -119,9 +119,9 @@
 0127 D4         123       da           a
 0128 F533       124       mov          seconds, a
 012A            125      
-012A 30801B     126            jnb UPDOWN, Timer2_ISR_decrement
+012A 308023     126            jnb UPDOWN, Timer2_ISR_decrement
 012D 2401       127            add a, #0x01
-012F 8019       128            sjmp Timer2_ISR_da
+012F 8021       128            sjmp Timer2_ISR_da
 0131            129            
 0131            130   IncTenthSeconds:
 0131 2401       131            add a, #0x01
@@ -132,107 +132,121 @@
 013B 020105     136            ljmp Inc_Done
 013E            137   
 013E            138   IncSeconds:
-013E C2A2       139            clr OvenPin
-0140 2401       140            add a, #0x01
-0142 D4         141            da a
-0143 F533       142            mov seconds, a
-0145 020105     143            ljmp Inc_Done
-0148            144   
-0148            145   Timer2_ISR_decrement:
-0148 2499       146            add a, #0x99 ; Adding the 10-complement of -1 is like subtracting 1.
-014A            147   
-014A            148   Timer2_ISR_da:
-014A D4         149            da a
-014B F532       150            mov tenth_seconds, a
-014D            151            
-014D            152   Timer2_ISR_done:
-014D D0D0       153            pop psw
-014F D0E0       154            pop acc
-0151 32         155            reti
-0152            156   
-0152            157   
-0152            158   ; Main program. Includes hardware ;
-0152            159   ; initialization and 'forever'    ;
-0152            160   ; loop.                           ;
-0152            161   main:
-0152            162            ; Initialization
-0152 75817F     163       mov SP, #0x7F
-0155 1200DC     164       lcall Timer2_Init
-0158            165       ; In case you decide to use the pins of P0, configure the port in bidirectional mode:
-0158 75E600     166       mov P0M0, #0
-015B 75E700     167       mov P0M1, #0
-015E            168   
-015E 753401     169            mov PowerPercent, #1 ;Power Percent Mode set, 0 = 0%, 1 = 10% ... 10 = 100%
-0161 753200     170            mov tenth_seconds, #0
-0164 753300     171            mov seconds, #0
-0167            172   
-0167 D2AF       173       setb EA   ; Enable Global interrupts
-0169 120088     174       lcall LCD_4BIT
-016C            175   
-016C            176       ; For convenience a few handy macros are included in 'LCD_4bit.inc':
-016C C0E0       177            push acc
-016E 7401       177            mov a, #1
-0170 14         177            dec a
-0171 1200BF     177            lcall ?Set_Cursor_1 ; Select column and row
-0174 D0E0       177            pop acc
-0176 D200       178       setb tenth_seconds_flag
-0178            179            
-0178            180            
-0178            181            ; After initialization the program stays in this 'forever' loop
-0178            182   loop:
-0178 20C51C     183            jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
-017B C002       184            push AR2
-017D 7A32       184            mov R2, #50
-017F 120039     184            lcall ?Wait_Milli_Seconds
-0182 D002       184            pop AR2         ; Debounce delay.  This macro is also in 'LCD_4bit.inc'
-0184 20C510     185            jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
-0187 30C5FD     186            jnb BOOT_BUTTON, $              ; Wait for button release.  The '$' means: jump to same instruction.
-018A            187            ; A valid press of the 'BOOT' button has been detected, reset the BCD counter.
-018A            188            ; But first stop timer 2 and reset the milli-tenth_seconds counter, to resync everything.
-018A C2CA       189            clr TR2                 ; Stop timer 2
-018C E4         190            clr a
-018D F530       191            mov Count1ms+0, a
-018F F531       192            mov Count1ms+1, a
-0191            193            ; Now clear the BCD counter
-0191 F532       194            mov tenth_seconds, a
-0193 D2CA       195            setb TR2                ; Start timer 2
-0195 8003       196            sjmp loop_b             ; Display the new value
-0197            197   loop_a:
-0197 3000DE     198            jnb tenth_seconds_flag, loop
-019A            199   loop_b:
-019A C200       200       clr tenth_seconds_flag
-019C            201       
-019C C0E0       202            push acc
-019E 7408       202            mov a, #8
-01A0 14         202            dec a
-01A1 1200BF     202            lcall ?Set_Cursor_1 ; Select column and row
-01A4 D0E0       202            pop acc
-01A6 C000       203            push ar0
-01A8 A832       203            mov r0, tenth_seconds
-01AA 1200C4     203            lcall ?Display_BCD
-01AD D000       203            pop ar0
-01AF C0E0       204            push acc
-01B1 7406       204            mov a, #6
-01B3 14         204            dec a
-01B4 1200BF     204            lcall ?Set_Cursor_1 ; Select column and row
-01B7 D0E0       204            pop acc
-01B9 C000       205            push ar0
-01BB A833       205            mov r0, seconds
-01BD 1200C4     205            lcall ?Display_BCD
-01C0 D000       205            pop ar0
-01C2 C0E0       206            push acc
-01C4 7408       206            mov a, #8
-01C6 14         206            dec a
-01C7 1200BF     206            lcall ?Set_Cursor_1 ; Select column and row
-01CA D0E0       206            pop acc
-01CC C083       207            push dph
-01CE C082       207            push dpl
-01D0 C0E0       207            push acc
-01D2 9000DA     207            mov dptr, #Initial_Message
-01D5 1200B2     207            lcall ?Send_Constant_String
-01D8 D0E0       207            pop acc
-01DA D082       207            pop dpl
-01DC D083       207            pop dph
-01DE            208   
-01DE 020178     209       ljmp loop
-01E1            210   END
+013E 2401       139            add a, #0x01
+0140 D4         140            da a
+0141 F533       141            mov seconds, a
+0143 E534       142            mov a, PowerPercent
+0145 B40003     143            cjne a, #0x00, OvenOn
+0148 020105     144            ljmp Inc_Done
+014B            145   
+014B            146   OvenOn:
+014B C2A2       147            clr OvenPin
+014D 020105     148            ljmp Inc_Done
+0150            149   
+0150            150   Timer2_ISR_decrement:
+0150 2499       151            add a, #0x99 ; Adding the 10-complement of -1 is like subtracting 1.
+0152            152   
+0152            153   Timer2_ISR_da:
+0152 D4         154            da a
+0153 F532       155            mov tenth_seconds, a
+0155            156            
+0155            157   Timer2_ISR_done:
+0155 D0D0       158            pop psw
+0157 D0E0       159            pop acc
+0159 32         160            reti
+015A            161   
+015A            162   
+015A            163   ; Main program. Includes hardware ;
+015A            164   ; initialization and 'forever'    ;
+015A            165   ; loop.                           ;
+015A            166   main:
+015A            167            ; Initialization
+015A 75817F     168       mov SP, #0x7F
+015D 1200DC     169       lcall Timer2_Init
+0160            170       ; In case you decide to use the pins of P0, configure the port in bidirectional mode:
+0160 75E600     171       mov P0M0, #0
+0163 75E700     172       mov P0M1, #0
+0166            173   
+0166 753408     174            mov PowerPercent, #8 ;Power Percent Mode set, 0 = 0%, 1 = 10% ... 10 = 100%
+0169 753200     175            mov tenth_seconds, #0
+016C 753300     176            mov seconds, #0
+016F            177   
+016F D2AF       178       setb EA   ; Enable Global interrupts
+0171 120088     179       lcall LCD_4BIT
+0174            180   
+0174            181       ; For convenience a few handy macros are included in 'LCD_4bit.inc':
+0174 C0E0       182            push acc
+0176 7401       182            mov a, #1
+0178 14         182            dec a
+0179 1200BF     182            lcall ?Set_Cursor_1 ; Select column and row
+017C D0E0       182            pop acc
+017E D200       183       setb tenth_seconds_flag
+0180            184            
+0180            185            
+0180            186            ; After initialization the program stays in this 'forever' loop
+0180            187   loop:
+0180 20C51C     188            jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
+0183 C002       189            push AR2
+0185 7A32       189            mov R2, #50
+0187 120039     189            lcall ?Wait_Milli_Seconds
+018A D002       189            pop AR2         ; Debounce delay.  This macro is also in 'LCD_4bit.inc'
+018C 20C510     190            jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
+018F 30C5FD     191            jnb BOOT_BUTTON, $              ; Wait for button release.  The '$' means: jump to same instruction.
+0192            192            ; A valid press of the 'BOOT' button has been detected, reset the BCD counter.
+0192            193            ; But first stop timer 2 and reset the milli-tenth_seconds counter, to resync everything.
+0192 C2CA       194            clr TR2                 ; Stop timer 2
+0194 E4         195            clr a
+0195 F530       196            mov Count1ms+0, a
+0197 F531       197            mov Count1ms+1, a
+0199            198            ; Now clear the BCD counter
+0199 F532       199            mov tenth_seconds, a
+019B D2CA       200            setb TR2                ; Start timer 2
+019D 8003       201            sjmp loop_b             ; Display the new value
+019F            202   loop_a:
+019F 3000DE     203            jnb tenth_seconds_flag, loop
+01A2            204   loop_b:
+01A2 C200       205       clr tenth_seconds_flag
+01A4            206       
+01A4 C0E0       207            push acc
+01A6 7408       207            mov a, #8
+01A8 14         207            dec a
+01A9 1200BF     207            lcall ?Set_Cursor_1 ; Select column and row
+01AC D0E0       207            pop acc
+01AE C000       208            push ar0
+01B0 A832       208            mov r0, tenth_seconds
+01B2 1200C4     208            lcall ?Display_BCD
+01B5 D000       208            pop ar0
+01B7 C0E0       209            push acc
+01B9 7406       209            mov a, #6
+01BB 14         209            dec a
+01BC 1200BF     209            lcall ?Set_Cursor_1 ; Select column and row
+01BF D0E0       209            pop acc
+01C1 C000       210            push ar0
+01C3 A833       210            mov r0, seconds
+01C5 1200C4     210            lcall ?Display_BCD
+01C8 D000       210            pop ar0
+01CA C0E0       211            push acc
+01CC 7408       211            mov a, #8
+01CE 14         211            dec a
+01CF 1200BF     211            lcall ?Set_Cursor_1 ; Select column and row
+01D2 D0E0       211            pop acc
+01D4 C083       212            push dph
+01D6 C082       212            push dpl
+01D8 C0E0       212            push acc
+01DA 9000DA     212            mov dptr, #Initial_Message
+01DD 1200B2     212            lcall ?Send_Constant_String
+01E0 D0E0       212            pop acc
+01E2 D082       212            pop dpl
+01E4 D083       212            pop dph
+01E6 C0E0       213            push acc
+01E8 7405       213            mov a, #5
+01EA 14         213            dec a
+01EB 1200BD     213            lcall ?Set_Cursor_2 ; Select column and row
+01EE D0E0       213            pop acc
+01F0 C000       214            push ar0
+01F2 A834       214            mov r0, PowerPercent
+01F4 1200C4     214            lcall ?Display_BCD
+01F7 D000       214            pop ar0
+01F9            215   
+01F9 020180     216       ljmp loop
+01FC            217   END
