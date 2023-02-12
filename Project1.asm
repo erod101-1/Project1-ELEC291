@@ -182,7 +182,6 @@ main:
 	Set_Cursor(1, 1)
     setb tenth_seconds_flag
 	
-	
 	; After initialization the program stays in this 'forever' loop
 loop:
 	jb BOOT_BUTTON, loop_a  ; if the 'BOOT' button is not pressed skip
@@ -203,7 +202,6 @@ loop_a:
 	jnb tenth_seconds_flag, loop
 loop_b:
     clr tenth_seconds_flag
-    
    	Set_Cursor(1, 8)
 	Display_BCD(tenth_seconds)
 	Set_Cursor(1, 6)

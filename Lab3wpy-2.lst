@@ -1,0 +1,217 @@
+                 83   $LIST
+                 -1   $include(LCD_4bit.inc)
+005D              1   cseg
+005D              2   
+005D              3   ; When using a 22.1184MHz crystal in fast mode
+005D              4   ; one cycle takes 1.0/22.1184MHz = 45.21123 ns
+005D              5   
+005D              6   ;---------------------------------;
+005D              7   ; Wait 40 microseconds            ;
+005D              8   ;---------------------------------;
+005D              9   Wait40uSec:
+005D C000        10            push AR0
+005F 78B1        11            mov R0, #177
+0061             12   L0: 
+0061 00          13            nop
+0062 00          14            nop
+0063 D8FC        15            djnz R0, L0 ; 1+1+3 cycles->5*45.21123ns*177=40us
+0065 D000        16            pop AR0
+0067 22          17       ret
+0068             18   
+0068             19   ;---------------------------------;
+0068             20   ; Wait 'R2' milliseconds          ;
+0068             21   ;---------------------------------;
+                 22   Wait_Milli_Seconds mac
+                 23   	push AR2
+                 24   	mov R2, %0
+                 25   	lcall ?Wait_Milli_Seconds
+                 26   	pop AR2
+                 27   endmac
+0068             28   
+0068             29   ?Wait_Milli_Seconds:
+0068 C000        30            push AR0
+006A C001        31            push AR1
+006C 792D        32   L3: mov R1, #45
+006E 78A6        33   L2: mov R0, #166
+0070 D8FE        34   L1: djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
+0072 D9FA        35       djnz R1, L2 ; 22.51519us*45=1.013ms
+0074 DAF6        36       djnz R2, L3 ; number of millisecons to wait passed in R2
+0076 D001        37       pop AR1
+0078 D000        38       pop AR0
+007A 22          39       ret
+007B             40            
+007B             41   ;---------------------------------;
+007B             42   ; Toggles the 'E' pin in the LCD  ;
+007B             43   ;---------------------------------;
+007B             44   LCD_pulse:
+007B D2B3        45            setb LCD_E
+007D 12005D      46            lcall Wait40uSec
+0080 C2B3        47            clr LCD_E
+0082 22          48       ret
+0083             49   
+0083             50   ;---------------------------------;
+0083             51   ; Writes acc to LCD in 4-bit mode ;
+0083             52   ;---------------------------------;
+0083             53   LCD_byte:
+0083             54            ; Write high 4 bits first
+0083 A2E7        55            mov c, ACC.7
+0085 92B7        56            mov LCD_D7, c
+0087 A2E6        57            mov c, ACC.6
+0089 92B6        58            mov LCD_D6, c
+008B A2E5        59            mov c, ACC.5
+008D 92B5        60            mov LCD_D5, c
+008F A2E4        61            mov c, ACC.4
+0091 92B4        62            mov LCD_D4, c
+0093 12007B      63       lcall LCD_pulse
+0096 12005D      64       lcall Wait40uSec
+0099             65            ; Write low 4 bits next
+0099 A2E3        66            mov c, ACC.3
+009B 92B7        67            mov LCD_D7, c
+009D A2E2        68            mov c, ACC.2
+009F 92B6        69            mov LCD_D6, c
+00A1 A2E1        70            mov c, ACC.1
+00A3 92B5        71            mov LCD_D5, c
+00A5 A2E0        72            mov c, ACC.0
+00A7 92B4        73            mov LCD_D4, c
+00A9 12007B      74       lcall LCD_pulse
+00AC 22          75            ret
+00AD             76   
+00AD             77   ;---------------------------------;
+00AD             78   ; Write data to LCD               ;
+00AD             79   ;---------------------------------;
+                 80   WriteData mac
+                 81   	mov a, %0
+                 82   	lcall ?WriteData
+                 83   endmac
+00AD             84            
+00AD             85   ?WriteData:
+00AD D2B2        86            setb LCD_RS
+00AF 020083      87            ljmp LCD_byte
+00B2             88   
+00B2             89   ;---------------------------------;
+00B2             90   ; Write command to LCD            ;
+00B2             91   ;---------------------------------;
+                 92   WriteCommand mac
+                 93   	mov a, %0
+                 94   	lcall ?WriteCommand
+                 95   endmac
+00B2             96   
+00B2             97   ?WriteCommand:
+00B2 C2B2        98            clr LCD_RS
+00B4 020083      99            ljmp LCD_byte
+00B7            100   
+00B7            101   ;---------------------------------;
+00B7            102   ; Configure LCD in 4-bit mode     ;
+00B7            103   ;---------------------------------;
+00B7            104   LCD_4BIT:
+00B7 C2B3       105            clr LCD_E   ; Resting state of LCD's enable pin is zero
+00B9            106            ; clr LCD_RW  ; Only writing to the LCD.  Tie this pin to ground
+00B9            107            
+00B9            108            ; After power on, let the LCD start up before initializing
+00B9            109            ; NOTE: the preprogrammed power-on delay of 16 ms on the AT89LP51RC2
+00B9            110            ; seems to be enough.  That is why this line is commented out.
+00B9            111            ; Wait_Milli_Seconds(#40)
+00B9            112            
+00B9            113            ; First make sure the LCD is in 8-bit mode and then change to 4-bit mode
+00B9 7433       114            mov a, #0x33
+00BB 1200B2     114            lcall ?WriteCommand
+00BE 7433       115            mov a, #0x33
+00C0 1200B2     115            lcall ?WriteCommand
+00C3 7432       116            mov a, #0x32
+00C5 1200B2     116            lcall ?WriteCommand ; change to 4-bit mode
+00C8            117   
+00C8            118            ; Configure the LCD
+00C8 7428       119            mov a, #0x28
+00CA 1200B2     119            lcall ?WriteCommand
+00CD 740C       120            mov a, #0x0c
+00CF 1200B2     120            lcall ?WriteCommand
+00D2 7401       121            mov a, #0x01
+00D4 1200B2     121            lcall ?WriteCommand ;  Clear screen command (takes some time)
+00D7            122   
+00D7            123       ;Wait for the clear screen command to finish.
+00D7 C002       124            push AR2
+00D9 7A02       124            mov R2, #2
+00DB 120068     124            lcall ?Wait_Milli_Seconds
+00DE D002       124            pop AR2
+00E0 22         125       ret
+00E1            126   
+00E1            127   ;---------------------------------;
+00E1            128   ; Send a constant string to LCD   ;
+00E1            129   ;---------------------------------;
+                130   Send_Constant_String mac
+                131   	push dph
+                132   	push dpl
+                133   	push acc
+                134   	mov dptr, %0
+                135   	lcall ?Send_Constant_String
+                136   	pop acc
+                137   	pop dpl
+                138   	pop dph
+                139   endmac
+00E1            140   
+00E1            141   ?Send_Constant_String:
+00E1 E4         142       clr a
+00E2 93         143       movc a, @a+dptr
+00E3 6006       144       jz ?Send_Constant_String_Done
+00E5 1200AD     145       lcall ?WriteData
+00E8 A3         146       inc dptr
+00E9 80F6       147       sjmp ?Send_Constant_String
+00EB            148   ?Send_Constant_String_Done:
+00EB 22         149       ret  
+00EC            150   
+00EC            151   ;---------------------------------;
+00EC            152   ; Set LCD cursor at row, column   ;
+00EC            153   ;---------------------------------;
+                154   Set_Cursor mac
+                155   	push acc
+                156   	mov a, #%1
+                157   	dec a
+                158   	lcall ?Set_Cursor_%0 ; Select column and row
+                159   	pop acc
+                160   endmac
+00EC            161   
+00EC            162   ?Set_Cursor_2:
+00EC 4440       163            orl a, #01000000B
+00EE            164   ?Set_Cursor_1:
+00EE 4480       165            orl a, #10000000B
+00F0 0200B2     166            ljmp ?WriteCommand ; Select column and row
+00F3            167   
+00F3            168   ;---------------------------------;
+00F3            169   ; Display a BCD number in the LCD ;
+00F3            170   ;---------------------------------;
+                171   Display_BCD mac
+                172   	push ar0
+                173   	mov r0, %0
+                174   	lcall ?Display_BCD
+                175   	pop ar0
+                176   endmac
+00F3            177   
+00F3            178   ?Display_BCD:
+00F3 C0E0       179            push acc
+00F5            180            ; Write most significant digit
+00F5 E8         181            mov a, r0
+00F6 C4         182            swap a
+00F7 540F       183            anl a, #0fh
+00F9 4430       184            orl a, #30h
+00FB 1200AD     185            lcall ?WriteData
+00FE            186            ; write least significant digit
+00FE E8         187            mov a, r0
+00FF 540F       188            anl a, #0fh
+0101 4430       189            orl a, #30h
+0103 1200AD     190            lcall ?WriteData
+0106 D0E0       191            pop acc
+0108 22         192            ret
+0109            193   
+0109            194   ;------------------------------------;
+0109            195   ; Display a char in the LCD          ;
+0109            196   ;------------------------------------;
+                197   Display_char mac
+                198   	push acc
+                199   	mov a, %0
+                200   	lcall ?WriteData
+                201   	pop acc
+                202   endmac
+0109            203   
+                 87   $LIST
+                 -1   $include(math32.inc)
+                546   $LIST
