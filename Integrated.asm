@@ -264,8 +264,8 @@ MainProgram:
 Forever:
     Read_ADC_Channel(0)
 
-	lcall Wait10us
-  	lcall Average_CH0
+    lcall Wait10us
+    lcall Average_CH0
 
     Set_Cursor(2,1)
     mov x+1, R7
