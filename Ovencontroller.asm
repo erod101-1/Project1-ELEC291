@@ -23,12 +23,11 @@ LCD_D4 equ P3.4
 LCD_D5 equ P3.5
 LCD_D6 equ P3.6
 LCD_D7 equ P3.7
-OvenPin equ P2.2
+OvenPin equ P1.1
 UPDOWN equ P0.0
 
-;
+
 ;[PLACE HOLDER VALUES OF BUTTONS] 
-;
 button1 equ P0.1
 button2 equ P0.2
 button3 equ P0.3
@@ -117,9 +116,9 @@ $NOLIST
 
 ;********* SPI **********;
 CE_ADC EQU P2.0
-MY_MOSI   EQU  P2.1
-MY_MISO   EQU  P2.2
-MY_SCLK   EQU  P2.3
+MY_MOSI EQU  P2.1
+MY_MISO EQU  P2.2
+MY_SCLK EQU  P2.3
 
 INI_SPI:
     setb MY_MISO ; Make MISO an input pin
@@ -305,19 +304,19 @@ Inc_Done:
 	mov Count1ms+0, a
 	mov Count1ms+1, a
 
-    Read_ADC_Channel(0)
-    lcall Wait10us
-    lcall Average_CH0
-    Set_Cursor(1,1)
-    mov x+1, R7
-    mov x+0, R6
-    lcall hex2bcd
-    Display_BCD(bcd+1)
-    Display_BCD(bcd+0)
+    ;Read_ADC_Channel(0)
+    ;lcall Wait10us
+    ;lcall Average_CH0
+    ;Set_Cursor(1,1)
+    ;mov x+1, R7
+    ;mov x+0, R6
+    ;lcall hex2bcd
+    ;Display_BCD(bcd+1)
+    ;Display_BCD(bcd+0)
 
-    mov channel_0_voltage+1, R6 ;low
-    mov channel_0_voltage+0, R7 ;High
-    lcall Do_Something_With_Result
+    ;mov channel_0_voltage+1, R6 ;low
+    ;mov channel_0_voltage+0, R7 ;High
+    ;lcall Do_Something_With_Result
 
 	;1/10 Seconds Increment
 	mov a, tenth_seconds
@@ -373,22 +372,37 @@ MainProgram:
     ; Initialization
     mov SP, #7FH ; Set the stack pointer to the begining of idata
     lcall Timer2_Init
+    lcall LCD_4bit
+    lcall InitSerialPort
 
     mov tenth_seconds, #0
 	mov seconds, #0
     mov state, #0
     setb EA   ; Enable Global interrupts
-
     
-    lcall LCD_4bit
-    lcall InitSerialPort
+    
     Set_Cursor(1,1)
     Send_Constant_String(#TEMPERATURE_MESSAGE)
     lcall INI_SPI
 
 forever:
     
-    jnb tenth_seconds_flag, state0
+    Read_ADC_Channel(0)
+    lcall Wait10us
+    lcall Average_CH0
+
+    Set_Cursor(2,1)
+    mov x+1, R7
+    mov x+0, R6
+    lcall hex2bcd
+    Display_BCD(bcd+1)
+    Display_BCD(bcd+0)
+    
+    mov channel_0_voltage+1, R7 ;low
+    mov channel_0_voltage+0,R6 ;High
+    lcall Do_Something_With_Result
+
+    jnb tenth_seconds_flag, forever
     clr tenth_seconds_flag
 	Set_Cursor(2, 6)
 	Display_BCD(seconds)
@@ -397,7 +411,8 @@ forever:
     Set_Cursor(2,12)
     Display_BCD(PowerPercent)
     
-    ljmp state0
+    ljmp forever
+    ;ljmp state0
 
 state0:
     mov a, state
