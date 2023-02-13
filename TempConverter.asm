@@ -50,8 +50,10 @@ state: ds 1
 
 temp_soak: ds 1
 time_soak: ds 1
+
 temp_refl: ds 1
 time_refl: ds 1
+
 temp_cool: ds 1
 
 BSEG
@@ -348,9 +350,8 @@ MainProgram:
 	mov seconds, #0
     mov state, #0
     setb EA   ; Enable Global interrupts
-    mov SP, #7FH ; Set the stack pointer to the begining of idata
-    mov state, #0
 
+    mov SP, #7FH ; Set the stack pointer to the begining of idata
     lcall LCD_4bit
     lcall InitSerialPort
     Set_Cursor(1,1)
@@ -369,6 +370,8 @@ forever:
 	Display_BCD(seconds)
     Set_Cursor(2,9)
     Display_BCD(state)
+    Set_Cursor(2,12)
+    Display_BCD(PowerPercent)
     
     ljmp state0
 
