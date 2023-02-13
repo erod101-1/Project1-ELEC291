@@ -26,21 +26,35 @@ LCD_D7 equ P3.7
 OvenPin equ P2.2
 UPDOWN equ P0.0
 
+;;;;
+;;;;[PLACE HOLDER VALUES OF BUTTONS];;;; 
+;;;;
+button1 equ P0.1
+button2 equ P0.2
+button3 equ P0.3
+button4 equ P0.4
+
 
 
 ; These register definitions needed by 'math32.inc'
 DSEG at 30H
-x:   ds 4
-y:   ds 4
+x: ds 4
+y: ds 4
 bcd: ds 5
 temp_result: ds 4
 channel_0_voltage: ds 4
 BCD_counter: ds 4
-Count1ms:     ds 2 ; Used to determine when 1/10 of a second has passed
+Count1ms: ds 2 ; Used to determine when 1/10 of a second has passed
 tenth_seconds: ds 1 ; Store tenth_seconds 
 seconds: ds 1 ; Stores seconds
 PowerPercent: ds 1 ; Power% for Oven, 1 = 10%, 2 = 20% ... 10 = 100%. Using PWM
 state: ds 1
+
+temp_soak: ds 1
+time_soak: ds 1
+temp_refl: ds 1
+time_refl: ds 1
+temp_cool: ds 1
 
 BSEG
 mf: dbit 1
@@ -80,12 +94,9 @@ SendString:
 SendStringDone:
     ret
  
-
 ; 1234567890123456 ;
 TEMPERATURE_MESSAGE: db '  TEMP: xxx C    ', 0
 
-
-;***********************************;
 ; DELAY MODULE ;
 delay:
     mov R2, #200
@@ -104,17 +115,11 @@ $LIST
 $include(math32.inc)
 $NOLIST
 
-
-
-
-
 ;********* SPI **********;
 CE_ADC EQU P2.0
 MY_MOSI   EQU  P2.1
 MY_MISO   EQU  P2.2
 MY_SCLK   EQU  P2.3
-
-
 
 INI_SPI:
     setb MY_MISO ; Make MISO an input pin
@@ -138,7 +143,6 @@ DO_SPI_G_LOOP:
     clr MY_SCLK
     djnz R2, DO_SPI_G_LOOP
     ret
-;************************;
 
 ;********** MACRO FOR READING CHANNELS **********;
 Read_ADC_Channel MAC
@@ -165,8 +169,6 @@ _Read_ADC_Channel:
     mov R6, a ; R1 contains bits 0 to 7.  Save result low.
     setb CE_ADC
     ret
-;************************************************;
-
 ;---------------------------------------;
 ; Send a BCD number to PuTTY in ASCIII ;
 ;---------------------------------------;
@@ -199,21 +201,17 @@ print2lcd:
 	ret
 
 Do_Something_With_Result:
-    mov x+0,channel_0_voltage+0
-    mov x+1,channel_0_voltage+1
-    mov x+2,#0
-    mov x+3,#0
+    mov x+0, channel_0_voltage+0
+    mov x+1, channel_0_voltage+1
+    mov x+2, #0
+    mov x+3, #0
     
     load_y(4096)
 	lcall mul32
 	
 	load_y(300)
 	lcall mul32
-	;load_y(10)
-	;lcall mul32
-	
-	;load_y(10)
-	;lcall div32
+
 	load_y(1023)
 	lcall div32
 	load_y(3900)
@@ -222,7 +220,7 @@ Do_Something_With_Result:
 	load_y(22)
 	lcall add32
 
-    mov bcd,x
+    mov bcd, x
     mov a, x
     da a
     mov temp_result,a
@@ -288,6 +286,7 @@ Inc_Done:
 
 	; 100 milliseconds have passed.  Set a flag so the main program knows
 	setb tenth_seconds_flag ; Let the main program know 100 milliseconds have passed
+
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
@@ -359,47 +358,93 @@ MainProgram:
     Send_Constant_String(#TEMPERATURE_MESSAGE)
     lcall INI_SPI
 
-Forever:
+forever:
     Read_ADC_Channel(0)
     mov channel_0_voltage+1, R6 ;low
     mov channel_0_voltage+0, R7 ;High
     lcall Do_Something_With_Result
     
-    jnb tenth_seconds_flag, Forever
-loop_timer:
+    jnb tenth_seconds_flag, state0
     clr tenth_seconds_flag
-
     Set_Cursor(2, 8)
 	Display_BCD(tenth_seconds)
 	Set_Cursor(2, 6)
 	Display_BCD(seconds)
     
-    ljmp Forever
-
+    ljmp state0
 
 state0:
-    cjne state, #0, state1
-    ljmp Forever
+    cjne a, #0, state1
+
+    mov PowerPercent, #0
+
+    jb button1, state0_done
+    Wait_Milli_Seconds(#50)
+	jb NEXT_SCREEN, state0_done
+	jnb NEXT_SCREEN, $
+
+    mov state, #1
+state0_done:
+    ljmp forever
 
 state1:
-    cjne state, #0, state2
-    ljmp Forever
+    cjne a, #1, state2
+
+    mov PowerPercent, #10
+    mov seconds, #0
+
+    mov a, temp_soak
+    clr c
+    subb a, temp_result
     
+    jnc state1_done
+    mov state, #2
+state1_done:
+    ljmp forever
+
 state2:
-    cjne state, #0, state3
-    ljmp Forever
-
+    cjne a, #2, state3
+    mov PowerPercent, #2
+    mov a, time_soak
+    clr c
+    subb a, seconds
+    jnc state2_done
+    mov state, #3
+state2_done:
+    ljmp forever
+  
 state3:
-    cjne state, #0, state4
-    ljmp Forever
-
+    cjne a, #3, state4
+    mov PowerPercent, #10
+    mov seconds, #0
+    mov a, temp_refl
+    clr c
+    subb a, temp_result
+    jnc state3_done
+    mov state, #4
+state3_done:
+    ljmp forever
+  
 state4:
-    cjne state, #0, state5
-    ljmp Forever
-
+    cjne a, #4, state5
+    mov PowerPercent, #2
+    mov a, time_refl
+    clr c
+    subb a, seconds
+    jnc state4_done
+    mov state, #5
+state4_done:
+    ljmp forever
+  
 state5:
-    cjne state, #0, state6
-    ljmp Forever
-
+    cjne a, #5, state0
+    mov PowerPercent, #0
+    mov a, temp_cool
+    clr c
+    subb a, temp_result
+    jc state5_done
+    mov state, #0
+state5_done:
+    ljmp forever
 
 END
