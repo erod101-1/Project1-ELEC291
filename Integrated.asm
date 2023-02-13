@@ -62,14 +62,9 @@ SendString:
 SendStringDone:
     ret
  
-Hello_World:
-    DB  'Hello, World!', '\r', '\n', 0
-
 ;                        1234567890123456 ;
 TEMPERATURE_MESSAGE: db '  TEMP: xxx C    ', 0
 
-
-;***********************************;
 ; DELAY MODULE ;
 delay:
     mov R2, #200
@@ -171,11 +166,6 @@ Send_BCD mac
     lcall putchar
     pop acc
     ret
-print2lcd:
-	mov BCD_counter, temp_result
-	Set_Cursor(1, 9)
-	Display_BCD(BCD_counter)
-	ret
 Wait10us:
 	mov R0, #74
 	djnz R0, $
@@ -206,11 +196,7 @@ Do_Something_With_Result:
 	
 	load_y(300)
 	lcall mul32
-	;load_y(10)
-	;lcall mul32
-	
-	;load_y(10)
-	;lcall div32
+
 	load_y(1023)
 	lcall div32
 	load_y(3900)
@@ -218,11 +204,6 @@ Do_Something_With_Result:
 	
 	load_y(22)
 	lcall add32
-	
-    
-
-    
-   
    
 
     ; We have T_disp = T_adc + T_ambient
@@ -250,8 +231,6 @@ Display_10_digit_BCD:
     Display_BCD(bcd+1)
     Display_BCD(bcd+0)
     ret
-
-
 
 MainProgram:
     mov SP, #7FH ; Set the stack pointer to the begining of idata
