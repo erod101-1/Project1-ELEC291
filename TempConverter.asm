@@ -343,7 +343,7 @@ Timer2_ISR_done:
 
 MainProgram:
     ; Initialization
-    mov SP, #0x7F
+    mov SP, #7FH ; Set the stack pointer to the begining of idata
     lcall Timer2_Init
 
     mov tenth_seconds, #0
@@ -351,7 +351,7 @@ MainProgram:
     mov state, #0
     setb EA   ; Enable Global interrupts
 
-    mov SP, #7FH ; Set the stack pointer to the begining of idata
+    
     lcall LCD_4bit
     lcall InitSerialPort
     Set_Cursor(1,1)
