@@ -28,9 +28,9 @@ UPDOWN equ P0.0
 
 
 ;[PLACE HOLDER VALUES OF BUTTONS] 
-button1 equ P0.1
-button2 equ P0.2
-button3 equ P0.3
+button1 equ P2.4
+button2 equ P2.6
+button3 equ P0.6
 button4 equ P0.4
 
 ; These register definitions needed by 'math32.inc'
@@ -38,9 +38,8 @@ DSEG at 30H
 x: ds 4
 y: ds 4
 bcd: ds 5
-temp_result: ds 4
+temp_result: ds 4 ;; was 4 bytes? only need one?
 channel_0_voltage: ds 4
-BCD_counter: ds 4
 Count1ms: ds 2 ; Used to determine when 1/10 of a second has passed
 tenth_seconds: ds 1 ; Store tenth_seconds 
 seconds: ds 1 ; Stores seconds
@@ -213,13 +212,14 @@ Sum_loop0:
 	load_y(100)
 	lcall div32
 	ret
+	
 Do_Something_With_Result:
-    mov x+0, channel_0_voltage+0
-    mov x+1, channel_0_voltage+1
-    mov x+2, #0
-    mov x+3, #0
-    
-    load_y(4096)
+ mov x+0,channel_0_voltage+0
+    mov x+1,channel_0_voltage+1
+    mov x+2,#0
+    mov x+3,#0
+  	
+	load_y(4096)
 	lcall mul32
 	
 	load_y(300)
@@ -232,8 +232,9 @@ Do_Something_With_Result:
 	
 	load_y(22)
 	lcall add32
+   
 
-    mov bcd, x
+    mov bcd,x ; move result into x
     mov a, x
     da a
     mov temp_result,a
@@ -256,6 +257,14 @@ Display_10_digit_BCD:
     Display_BCD(bcd+1)
     Display_BCD(bcd+0)
     ret
+;Display_10_digit_BCD:
+;    Set_Cursor(1, 9)
+;    Display_BCD(bcd+4)
+;    Display_BCD(bcd+3)
+;    Display_BCD(bcd+2)
+;    Display_BCD(bcd+1)
+;    Display_BCD(bcd+0)
+;    ret
 
 Timer2_Init:
 	mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
@@ -304,20 +313,6 @@ Inc_Done:
 	mov Count1ms+0, a
 	mov Count1ms+1, a
 
-    ;Read_ADC_Channel(0)
-    ;lcall Wait10us
-    ;lcall Average_CH0
-    ;Set_Cursor(1,1)
-    ;mov x+1, R7
-    ;mov x+0, R6
-    ;lcall hex2bcd
-    ;Display_BCD(bcd+1)
-    ;Display_BCD(bcd+0)
-
-    ;mov channel_0_voltage+1, R6 ;low
-    ;mov channel_0_voltage+0, R7 ;High
-    ;lcall Do_Something_With_Result
-
 	;1/10 Seconds Increment
 	mov a, tenth_seconds
 	cjne a, #0x9, IncTenthSeconds
@@ -331,7 +326,7 @@ Inc_Done:
     mov 	a, #0 
     da 		a
     mov 	seconds, a
-   
+
 	jnb UPDOWN, Timer2_ISR_decrement
 	add a, #0x01
 	sjmp Timer2_ISR_da
@@ -378,41 +373,48 @@ MainProgram:
     mov tenth_seconds, #0
 	mov seconds, #0
     mov state, #0
+    ;;; TEST VALUES
+    mov temp_soak, #100
+    ;;;
     setb EA   ; Enable Global interrupts
-    
     
     Set_Cursor(1,1)
     Send_Constant_String(#TEMPERATURE_MESSAGE)
     lcall INI_SPI
 
 forever:
-    
+    jnb tenth_seconds_flag, state0
+
     Read_ADC_Channel(0)
     lcall Wait10us
-    lcall Average_CH0
-
-    Set_Cursor(2,1)
-    mov x+1, R7
-    mov x+0, R6
-    lcall hex2bcd
-    Display_BCD(bcd+1)
-    Display_BCD(bcd+0)
+    ;lcall Average_CH0
+    lcall Do_Something_With_Result
     
+    ;Set_Cursor(2,1)
+    ;mov x+1, R7
+    ;mov x+0, R6
+    ;lcall hex2bcd
+    ;Display_BCD(bcd+1)
+    ;Display_BCD(bcd+0)
     mov channel_0_voltage+1, R7 ;low
     mov channel_0_voltage+0,R6 ;High
-    lcall Do_Something_With_Result
+    
 
-    jnb tenth_seconds_flag, forever
     clr tenth_seconds_flag
-	Set_Cursor(2, 6)
+    
+	Set_Cursor(2, 1)
 	Display_BCD(seconds)
+    Set_Cursor(2,3)
+    Display_BCD(tenth_seconds)
     Set_Cursor(2,9)
     Display_BCD(state)
     Set_Cursor(2,12)
     Display_BCD(PowerPercent)
+    ;Set_Cursor(1,9)
+    ;Display_BCD(temp_result)
     
-    ljmp forever
-    ;ljmp state0
+    ;ljmp forever
+    ljmp state0
 
 state0:
     mov a, state
@@ -423,22 +425,23 @@ state0:
 	jb button1, state0_done
 	jnb button1, $
 
+    ;State Transition from 0 -> 1
     mov state, #1
+    mov seconds, #0
 state0_done:
     ljmp forever
-
+    
 state1:
     mov a, state
     cjne a, #1, state2
-
-    mov PowerPercent, #10
-    mov seconds, #0
+    mov PowerPercent, #1
 
     mov a, temp_soak
     clr c
     subb a, temp_result
-
     jnc state1_done
+
+    ;State Transition from 1 -> 2
     mov state, #2
 state1_done:
     ljmp forever
