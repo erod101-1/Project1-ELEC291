@@ -214,7 +214,7 @@ Sum_loop0:
 	ret
 	
 Do_Something_With_Result:
- mov x+0,channel_0_voltage+0
+    mov x+0,channel_0_voltage+0
     mov x+1,channel_0_voltage+1
     mov x+2,#0
     mov x+3,#0
@@ -227,6 +227,7 @@ Do_Something_With_Result:
 
 	load_y(1023)
 	lcall div32
+    
 	load_y(3900)
 	lcall div32
 	
@@ -242,7 +243,7 @@ Do_Something_With_Result:
     lcall hex2bcd ;convert x to BCD
     lcall Display_10_digit_BCD
     
-	lcall Delay
+	;lcall Delay
     Send_BCD(bcd+1)
     Send_BCD(bcd+0)
     mov a,#'\r'
@@ -323,19 +324,19 @@ Inc_Done:
 	;Seconds Increment
 	mov 	a, Seconds
     cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
-    mov 	a, #0 
+    mov 	a, #0
     da 		a
     mov 	seconds, a
 
 	jnb UPDOWN, Timer2_ISR_decrement
-	add a, #0x01
+	add a, #0x01 ; test this
 	sjmp Timer2_ISR_da
 	
 IncTenthSeconds:
 	add a, #0x01
 	da a
 	mov tenth_seconds, a
-	cjne a, PowerPercent, Inc_Done
+	cjne a, PowerPercent, Inc_Done ;test jumping back into forever loop
 	setb OvenPin
 	ljmp Inc_Done
 
@@ -386,7 +387,7 @@ forever:
     jnb tenth_seconds_flag, state0
 
     Read_ADC_Channel(0)
-    lcall Wait10us
+    ;lcall Wait10us
     ;lcall Average_CH0
     lcall Do_Something_With_Result
     
@@ -436,10 +437,15 @@ state1:
     cjne a, #1, state2
     mov PowerPercent, #1
 
-    mov a, temp_soak
-    clr c
-    subb a, temp_result
-    jnc state1_done
+    jb button1, state1_done
+    Wait_Milli_Seconds(#50)
+	jb button1, state1_done
+	jnb button1, $
+
+    ;mov a, temp_soak
+    ;clr c
+    ;subb a, temp_result
+    ;jnc state1_done
 
     ;State Transition from 1 -> 2
     mov state, #2
