@@ -1,6 +1,6 @@
 $MODLP51RC2
 org 0000H
-   ljmp Main
+   ljmp MainProgram
 
 ; Timer/Counter 2 overflow interrupt vector
 org 0x002B
@@ -25,32 +25,22 @@ LCD_D6 equ P3.6
 LCD_D7 equ P3.7
 OvenPin equ P2.2
 UPDOWN equ P0.0
-CE_ADC EQU P2.0
-MY_MOSI EQU P2.1
-MY_MISO EQU P2.2
-MY_SCLK EQU P2.3
-BTN_START_FSM equ P0.6
+
 
 
 ; These register definitions needed by 'math32.inc'
 DSEG at 30H
-x: ds 4
-y: ds 4
+x:   ds 4
+y:   ds 4
 bcd: ds 5
 temp_result: ds 4
 channel_0_voltage: ds 4
 BCD_counter: ds 4
-Count1ms: ds 2 ; Used to determine when 1/10 of a second has passed
+Count1ms:     ds 2 ; Used to determine when 1/10 of a second has passed
 tenth_seconds: ds 1 ; Store tenth_seconds 
 seconds: ds 1 ; Stores seconds
 PowerPercent: ds 1 ; Power% for Oven, 1 = 10%, 2 = 20% ... 10 = 100%. Using PWM
-
 state: ds 1
-temp_soak: ds 1
-time_soak: ds 1
-temp_refl: ds 1
-time_refl: ds 1
-temp_cool: ds 1
 
 BSEG
 mf: dbit 1
@@ -90,6 +80,7 @@ SendString:
 SendStringDone:
     ret
  
+
 ; 1234567890123456 ;
 TEMPERATURE_MESSAGE: db '  TEMP: xxx C    ', 0
 
@@ -113,6 +104,18 @@ $LIST
 $include(math32.inc)
 $NOLIST
 
+
+
+
+
+;********* SPI **********;
+CE_ADC EQU P2.0
+MY_MOSI   EQU  P2.1
+MY_MISO   EQU  P2.2
+MY_SCLK   EQU  P2.3
+
+
+
 INI_SPI:
     setb MY_MISO ; Make MISO an input pin
     clr MY_SCLK           ; Mode 0,0 default
@@ -135,6 +138,7 @@ DO_SPI_G_LOOP:
     clr MY_SCLK
     djnz R2, DO_SPI_G_LOOP
     ret
+;************************;
 
 ;********** MACRO FOR READING CHANNELS **********;
 Read_ADC_Channel MAC
@@ -161,6 +165,8 @@ _Read_ADC_Channel:
     mov R6, a ; R1 contains bits 0 to 7.  Save result low.
     setb CE_ADC
     ret
+;************************************************;
+
 ;---------------------------------------;
 ; Send a BCD number to PuTTY in ASCIII ;
 ;---------------------------------------;
@@ -186,7 +192,6 @@ Send_BCD mac
     lcall putchar
     pop acc
     ret
-
 print2lcd:
 	mov BCD_counter, temp_result
 	Set_Cursor(1, 9)
@@ -199,12 +204,16 @@ Do_Something_With_Result:
     mov x+2,#0
     mov x+3,#0
     
-	load_y(4096)
+    load_y(4096)
 	lcall mul32
 	
 	load_y(300)
 	lcall mul32
-    
+	;load_y(10)
+	;lcall mul32
+	
+	;load_y(10)
+	;lcall div32
 	load_y(1023)
 	lcall div32
 	load_y(3900)
@@ -217,9 +226,9 @@ Do_Something_With_Result:
     mov a, x
     da a
     mov temp_result,a
-     
+
     lcall hex2bcd ;convert x to BCD
-    ;lcall Display_10_digit_BCD
+    lcall Display_10_digit_BCD
     
 	lcall Delay
     Send_BCD(bcd+1)
@@ -232,7 +241,7 @@ Do_Something_With_Result:
     ;takes voltage and give temperature
 
 Display_10_digit_BCD:
-    Set_Cursor(2,9)
+    Set_Cursor(1,9)
     Display_BCD(bcd+1)
     Display_BCD(bcd+0)
     ret
@@ -263,7 +272,7 @@ Timer2_ISR:
 	; The two registers used in the ISR must be saved in the stack
 	push acc
 	push psw
-    
+	
 	; Increment the 16-bit one mili second counter
 	inc Count1ms+0    ; Increment the low 8-bits first
 	mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
@@ -271,7 +280,7 @@ Timer2_ISR:
 	inc Count1ms+1
 
 Inc_Done:
-	; Check if tenth second has passed
+	; Check if half second has passed
 	mov a, Count1ms+0
 	cjne a, #low(100), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
@@ -290,7 +299,7 @@ Inc_Done:
     da a
     mov tenth_seconds, a
 
-	;Seconds Increment2
+	;Seconds Increment
 	mov 	a, Seconds
     cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
     mov 	a, #0 
@@ -314,7 +323,7 @@ IncSeconds:
 	da a
 	mov seconds, a
 	mov a, PowerPercent
-	cjne a, #0, OvenOn
+	cjne a, #0x00, OvenOn
 	ljmp Inc_Done
 
 OvenOn:
@@ -333,83 +342,64 @@ Timer2_ISR_done:
 	pop acc
 	reti
 
-Main:
+MainProgram:
     ; Initialization
     mov SP, #0x7F
     lcall Timer2_Init
 
-    ; Time Initial Values
     mov tenth_seconds, #0
 	mov seconds, #0
-    mov PowerPercent, #0
-    mov state, #0
-    
     setb EA   ; Enable Global interrupts
-
     mov SP, #7FH ; Set the stack pointer to the begining of idata
+    mov state, #0
+
     lcall LCD_4bit
     lcall InitSerialPort
     Set_Cursor(1,1)
     Send_Constant_String(#TEMPERATURE_MESSAGE)
     lcall INI_SPI
 
-forever:
-
-    ljmp CheckTemp
-
-state0: ;Wait for button press State
-    mov a, state
-    cjne a, #0, state1 ;if state != 0 goto state 1
-    
-    mov PowerPercent, #0
-    
-    jb BTN_START_FSM, state0_done
-    Wait_Milli_Seconds(#50)
-    jb BTN_START_FSM, state0_done
-    jnb BTN_START_FSM, $ ; Wait for key release
-
-    ;Move to State 1 if Start is pressed
-    mov PowerPercent, #10
-    mov state, #1
-state0_done:
-    ljmp forever
-    
-state1:
-    mov a, state
-    cjne a, #1, forever ;if state != 1 goto state 1
-    ;clr c
-    ;mov a, temp_soak
-    ;subb a, temp_result
-    ;jnc state1_done
-    ;mov a, #2
-    ;da a
-    ;mov state, a
-    ;mov seconds, #0
-state1_done:
-    ljmp forever
-
-CheckTemp:
+Forever:
     Read_ADC_Channel(0)
     mov channel_0_voltage+1, R6 ;low
     mov channel_0_voltage+0, R7 ;High
     lcall Do_Something_With_Result
     
-    mov a, state
-    jnb tenth_seconds_flag, CheckTempDone ;checks the tenth seconds flag
+    jnb tenth_seconds_flag, Forever
+loop_timer:
     clr tenth_seconds_flag
-    
-    ;Updates LCD
-    Set_Cursor(1,8)
-    Display_BCD(temp_result+1)
-    Display_BCD(temp_result+0)
-    Set_Cursor(2,8)
+
+    Set_Cursor(2, 8)
 	Display_BCD(tenth_seconds)
 	Set_Cursor(2, 6)
 	Display_BCD(seconds)
-    Set_Cursor(2,1)
-    Display_BCD(PowerPercent)
-    Set_Cursor(2,3)
-    Display_BCD(state)
-CheckTempDone:
-    ljmp state0
+    
+    ljmp Forever
+
+
+state0:
+    cjne state, #0, state1
+    ljmp Forever
+
+state1:
+    cjne state, #0, state2
+    ljmp Forever
+    
+state2:
+    cjne state, #0, state3
+    ljmp Forever
+
+state3:
+    cjne state, #0, state4
+    ljmp Forever
+
+state4:
+    cjne state, #0, state5
+    ljmp Forever
+
+state5:
+    cjne state, #0, state6
+    ljmp Forever
+
+
 END
