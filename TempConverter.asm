@@ -26,15 +26,13 @@ LCD_D7 equ P3.7
 OvenPin equ P2.2
 UPDOWN equ P0.0
 
-;;;;
-;;;;[PLACE HOLDER VALUES OF BUTTONS];;;; 
-;;;;
+;
+;[PLACE HOLDER VALUES OF BUTTONS] 
+;
 button1 equ P0.1
 button2 equ P0.2
 button3 equ P0.3
 button4 equ P0.4
-
-
 
 ; These register definitions needed by 'math32.inc'
 DSEG at 30H
@@ -348,6 +346,7 @@ MainProgram:
 
     mov tenth_seconds, #0
 	mov seconds, #0
+    mov state, #0
     setb EA   ; Enable Global interrupts
     mov SP, #7FH ; Set the stack pointer to the begining of idata
     mov state, #0
@@ -366,28 +365,28 @@ forever:
     
     jnb tenth_seconds_flag, state0
     clr tenth_seconds_flag
-    Set_Cursor(2, 8)
-	Display_BCD(tenth_seconds)
 	Set_Cursor(2, 6)
 	Display_BCD(seconds)
+    Set_Cursor(2,9)
+    Display_BCD(state)
     
     ljmp state0
 
 state0:
+    mov a, state
     cjne a, #0, state1
-
     mov PowerPercent, #0
-
     jb button1, state0_done
     Wait_Milli_Seconds(#50)
-	jb NEXT_SCREEN, state0_done
-	jnb NEXT_SCREEN, $
+	jb button1, state0_done
+	jnb button1, $
 
     mov state, #1
 state0_done:
     ljmp forever
 
 state1:
+    mov a, state
     cjne a, #1, state2
 
     mov PowerPercent, #10
@@ -396,13 +395,14 @@ state1:
     mov a, temp_soak
     clr c
     subb a, temp_result
-    
+
     jnc state1_done
     mov state, #2
 state1_done:
     ljmp forever
 
 state2:
+    mov a, state
     cjne a, #2, state3
     mov PowerPercent, #2
     mov a, time_soak
@@ -414,6 +414,7 @@ state2_done:
     ljmp forever
   
 state3:
+    mov a, state
     cjne a, #3, state4
     mov PowerPercent, #10
     mov seconds, #0
@@ -426,18 +427,22 @@ state3_done:
     ljmp forever
   
 state4:
+    mov a, state
     cjne a, #4, state5
     mov PowerPercent, #2
+
     mov a, time_refl
     clr c
     subb a, seconds
+
     jnc state4_done
     mov state, #5
 state4_done:
     ljmp forever
   
 state5:
-    cjne a, #5, state0
+    mov a, state
+    cjne a, #5, state5_done
     mov PowerPercent, #0
     mov a, temp_cool
     clr c
