@@ -25,6 +25,7 @@ bcd: ds 5
 temp_result: ds 4
 channel_0_voltage: ds 4
 BCD_counter: ds 4
+
 BSEG
 mf: dbit 1
 
@@ -74,6 +75,7 @@ L10: djnz R0, L10
     djnz R1, L11
     djnz R2, L12
     ret
+
 ;**************;
 $LIST
 $include(LCD_4bit.inc)
@@ -88,8 +90,6 @@ CE_ADC EQU P2.0
 MY_MOSI   EQU  P2.1
 MY_MISO   EQU  P2.2
 MY_SCLK   EQU  P2.3
-
-
 
 INI_SPI:
     setb MY_MISO ; Make MISO an input pin
@@ -120,6 +120,7 @@ Read_ADC_Channel MAC
     mov b, #%0 
     lcall _Read_ADC_Channel
 ENDMAC
+
 _Read_ADC_Channel:
     clr CE_ADC
     mov R0, #00000001B ; Start bit:1
@@ -139,7 +140,6 @@ _Read_ADC_Channel:
     mov R6, a ; R1 contains bits 0 to 7.  Save result low.
     setb CE_ADC
     ret
-;************************************************;
 
 ;---------------------------------------;
 ; Send a BCD number to PuTTY in ASCIII ;
@@ -206,8 +206,6 @@ Do_Something_With_Result:
 	lcall add32
    
 
-    ; We have T_disp = T_adc + T_ambient
-
     mov bcd,x ; move result into x
     mov a, x
     da a
@@ -249,16 +247,14 @@ Forever:
     Set_Cursor(2,1)
     mov x+1, R7
     mov x+0, R6
-   lcall hex2bcd
+    lcall hex2bcd
     Display_BCD(bcd+1)
     Display_BCD(bcd+0)
     
     mov channel_0_voltage+1, R7 ;low
     mov channel_0_voltage+0,R6 ;High
-    
-    
-    
     lcall Do_Something_With_Result
+    
     sjmp Forever
 
 END

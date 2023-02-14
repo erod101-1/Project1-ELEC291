@@ -94,7 +94,7 @@ SendStringDone:
  
 ; 1234567890123456 ;
 TEMPERATURE_MESSAGE: db '  TEMP: xxx C    ', 0
-
+TIME_MESSAGE: db 'T:',0
 ; DELAY MODULE ;
 delay:
     mov R2, #200
@@ -328,7 +328,7 @@ Inc_Done:
     da 		a
     mov 	seconds, a
 
-	jnb UPDOWN, Timer2_ISR_decrement
+	jnb UPDOWN, Timer2_ISR_decrement ;;; TEST REMOVING THIS ;;;;
 	add a, #0x01 ; test this
 	sjmp Timer2_ISR_da
 	
@@ -375,7 +375,11 @@ MainProgram:
 	mov seconds, #0
     mov state, #0
     ;;; TEST VALUES
-    mov temp_soak, #100
+    mov temp_soak, #50
+    mov time_soak, #30
+    mov temp_refl, #75
+    mov time_refl, #20
+    mov temp_cool, #30
     ;;;
     setb EA   ; Enable Global interrupts
     
@@ -397,29 +401,29 @@ forever:
     ;lcall hex2bcd
     ;Display_BCD(bcd+1)
     ;Display_BCD(bcd+0)
+
     mov channel_0_voltage+1, R7 ;low
-    mov channel_0_voltage+0,R6 ;High
+    mov channel_0_voltage+0, R6 ;High
     
 
     clr tenth_seconds_flag
-    
-	Set_Cursor(2, 1)
+    Set_Cursor(2,1)
+    Send_Constant_String(#TIME_MESSAGE)
+	Set_Cursor(2,3)
 	Display_BCD(seconds)
-    Set_Cursor(2,3)
+    Set_Cursor(2,5)
     Display_BCD(tenth_seconds)
     Set_Cursor(2,9)
     Display_BCD(state)
     Set_Cursor(2,12)
     Display_BCD(PowerPercent)
-    ;Set_Cursor(1,9)
-    ;Display_BCD(temp_result)
     
-    ;ljmp forever
     ljmp state0
 
 state0:
     mov a, state
     cjne a, #0, state1
+
     mov PowerPercent, #0
     jb button1, state0_done
     Wait_Milli_Seconds(#50)
@@ -428,19 +432,19 @@ state0:
 
     ;State Transition from 0 -> 1
     mov state, #1
-    mov seconds, #0
+    mov PowerPercent, #10
+    
 state0_done:
     ljmp forever
     
 state1:
     mov a, state
     cjne a, #1, state2
-    mov PowerPercent, #1
 
+    mov PowerPercent, #0
     jb button1, state1_done
     Wait_Milli_Seconds(#50)
 	jb button1, state1_done
-	jnb button1, $
 
     ;mov a, temp_soak
     ;clr c
@@ -448,6 +452,8 @@ state1:
     ;jnc state1_done
 
     ;State Transition from 1 -> 2
+    mov PowerPercent, #2
+    mov seconds, #0
     mov state, #2
 state1_done:
     ljmp forever
@@ -455,24 +461,31 @@ state1_done:
 state2:
     mov a, state
     cjne a, #2, state3
-    mov PowerPercent, #2
+
     mov a, time_soak
     clr c
     subb a, seconds
     jnc state2_done
+
+    ;State transition from 2 -> 3
+    mov PowerPercent, #10
+
     mov state, #3
 state2_done:
     ljmp forever
   
-state3:
+state3: 
     mov a, state
     cjne a, #3, state4
-    mov PowerPercent, #10
-    mov seconds, #0
+
     mov a, temp_refl
     clr c
     subb a, temp_result
     jnc state3_done
+
+    ;State transition from 3 -> 4
+    mov Seconds, #0
+    mov PowerPercent, #2
     mov state, #4
 state3_done:
     ljmp forever
@@ -480,13 +493,14 @@ state3_done:
 state4:
     mov a, state
     cjne a, #4, state5
-    mov PowerPercent, #2
 
     mov a, time_refl
     clr c
     subb a, seconds
-
     jnc state4_done
+
+    ;State transition from 4 -> 5
+    mov PowerPercent, #0    
     mov state, #5
 state4_done:
     ljmp forever
@@ -494,12 +508,15 @@ state4_done:
 state5:
     mov a, state
     cjne a, #5, state5_done
-    mov PowerPercent, #0
+    
     mov a, temp_cool
     clr c
     subb a, temp_result
     jc state5_done
+
+    ;State transition from 5 -> 0
     mov state, #0
+
 state5_done:
     ljmp forever
 
