@@ -95,6 +95,8 @@ SendStringDone:
 ; 1234567890123456 ;
 TEMPERATURE_MESSAGE: db '  TEMP: xxx C    ', 0
 TIME_MESSAGE: db 'T:',0
+POWER_MESSAGE: db 'P:',0
+STATE_MESSAGE: db 'S:',0
 ; DELAY MODULE ;
 delay:
     mov R2, #200
@@ -323,10 +325,11 @@ Inc_Done:
 
 	;Seconds Increment
 	mov 	a, Seconds
-    cjne 	a, #0x59, IncSeconds ; if Seconds != 59, then seconds++
+    cjne 	a, #0x99, IncSeconds ; if Seconds != 59, then seconds++
     mov 	a, #0
     da 		a
     mov 	seconds, a
+    ljmp Inc_Done
 
 	jnb UPDOWN, Timer2_ISR_decrement ;;; TEST REMOVING THIS ;;;;
 	add a, #0x01 ; test this
@@ -364,6 +367,9 @@ Timer2_ISR_da:
 	da a
 	mov tenth_seconds, a
 
+GoToState0:
+    ljmp state0
+
 MainProgram:
     ; Initialization
     mov SP, #7FH ; Set the stack pointer to the begining of idata
@@ -375,11 +381,11 @@ MainProgram:
 	mov seconds, #0
     mov state, #0
     ;;; TEST VALUES
-    mov temp_soak, #50
+    mov temp_soak, #100
     mov time_soak, #30
-    mov temp_refl, #75
+    mov temp_refl, #125
     mov time_refl, #20
-    mov temp_cool, #30
+    mov temp_cool, #60
     ;;;
     setb EA   ; Enable Global interrupts
     
@@ -388,24 +394,16 @@ MainProgram:
     lcall INI_SPI
 
 forever:
-    jnb tenth_seconds_flag, state0
+    jnb tenth_seconds_flag, GoToState0
 
     Read_ADC_Channel(0)
     ;lcall Wait10us
     ;lcall Average_CH0
     lcall Do_Something_With_Result
-    
-    ;Set_Cursor(2,1)
-    ;mov x+1, R7
-    ;mov x+0, R6
-    ;lcall hex2bcd
-    ;Display_BCD(bcd+1)
-    ;Display_BCD(bcd+0)
 
     mov channel_0_voltage+1, R7 ;low
     mov channel_0_voltage+0, R6 ;High
     
-
     clr tenth_seconds_flag
     Set_Cursor(2,1)
     Send_Constant_String(#TIME_MESSAGE)
@@ -414,13 +412,17 @@ forever:
     Set_Cursor(2,5)
     Display_BCD(tenth_seconds)
     Set_Cursor(2,9)
-    Display_BCD(state)
+    Send_Constant_String(#STATE_MESSAGE)
     Set_Cursor(2,12)
+    Send_Constant_String(#POWER_MESSAGE)
+    Set_Cursor(2,14)
     Display_BCD(PowerPercent)
+    Set_Cursor(2,11)
+    Display_BCD(state)
     
     ljmp state0
 
-state0:
+state0: ;Idle
     mov a, state
     cjne a, #0, state1
 
@@ -434,22 +436,17 @@ state0:
     mov state, #1
     mov PowerPercent, #10
     
-state0_done:
+state0_done: ;Ramp
     ljmp forever
     
 state1:
     mov a, state
     cjne a, #1, state2
 
-    mov PowerPercent, #0
-    jb button1, state1_done
-    Wait_Milli_Seconds(#50)
-	jb button1, state1_done
-
-    ;mov a, temp_soak
-    ;clr c
-    ;subb a, temp_result
-    ;jnc state1_done
+    mov a, temp_soak
+    clr c
+    subb a, temp_result
+    jnc state1_done
 
     ;State Transition from 1 -> 2
     mov PowerPercent, #2
@@ -508,14 +505,20 @@ state4_done:
 state5:
     mov a, state
     cjne a, #5, state5_done
-    
-    mov a, temp_cool
+
+    mov a, temp_result
     clr c
-    subb a, temp_result
-    jc state5_done
+    subb a, temp_cool
+    jnc state5_done
+
+    ;mov a, temp_cool
+    ;clr c
+    ;subb a, temp_result
+    ;jc state5_done
 
     ;State transition from 5 -> 0
     mov state, #0
+    mov PowerPercent, #0
 
 state5_done:
     ljmp forever
