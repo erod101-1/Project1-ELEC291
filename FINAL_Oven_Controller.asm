@@ -793,6 +793,7 @@ set_soak_time:
     Set_Cursor(2, 4)
     Send_Constant_String(#Soak_time_set_msg_2)
     Set_Cursor(2, 1)
+    ;Display_BCD(soak_time)
     mov a, soak_time
     lcall SendToLCD
     Change_8bit_Variable(INC_DEC, soak_time, lock_param2)
@@ -915,6 +916,25 @@ MainProgram2:
     ;mov refl_time, #0x45 ;45 DECIMAL
     ;mov cool_temp, #0x3C ;60 HEX
     ;;;
+
+    mov x+0, soak_time 
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    lcall hex2bcd
+    mov soak_time, BCD
+
+
+    mov x+0, refl_time 
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    lcall hex2bcd
+    mov refl_time, BCD
+
+
     setb EA   ; Enable Global interrupts
     
     Set_Cursor(1,1)
@@ -966,10 +986,10 @@ state0: ;Idle
     mov state, #1
     mov PowerPercent, #0x0A
     
-state0_done: ;Ramp
+state0_done:
     ljmp forever
     
-state1:
+state1: ;ramp to soak
     mov a, state
     cjne a, #1, state2
 
@@ -993,33 +1013,36 @@ state1:
 state1_done:
     ljmp forever
 
-state2:
+state2: ;soak
     mov a, state
     cjne a, #2, state3
 
-    mov bcd, seconds
-    lcall bcd2hex
-    mov x+1, #0
-    mov x+2, #0
-    mov x+3, #0
+    ;mov x, soak_time
+    
+    ;mov bcd, seconds
+    ;lcall bcd2hex
 
-    mov y+0, soak_time
-    mov y+1, #0
-    mov y+2, #0
-    mov y+3, #0
-
-    ;;;;;
-    ;mov x+0, soak_time
     ;mov x+1, #0
     ;mov x+2, #0
     ;mov x+3, #0
 
-    ;mov y+0, seconds + 0
+    ;mov y+0, soak_time
     ;mov y+1, #0
     ;mov y+2, #0
     ;mov y+3, #0
 
-    lcall x_gt_y
+ 
+    mov x+0, soak_time
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    mov y+0, seconds + 0
+    mov y+1, #0
+    mov y+2, #0
+    mov y+3, #0
+
+    lcall x_lt_y
     jnb mf, state2_done
 
     ;State transition from 2 -> 3
@@ -1028,7 +1051,7 @@ state2:
 state2_done:
     ljmp forever
   
-state3: 
+state3: ;ramp to reflow
     mov a, state
     cjne a, #3, state4
 
@@ -1052,7 +1075,7 @@ state3:
 state3_done:
     ljmp forever
   
-state4:
+state4: ;reflow
     mov a, state
     cjne a, #4, state5
 
@@ -1075,7 +1098,7 @@ state4:
 state4_done:
     ljmp forever
   
-state5:
+state5: ;cool
     mov a, state
     cjne a, #5, state5_done
 
