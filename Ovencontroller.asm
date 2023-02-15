@@ -46,10 +46,10 @@ seconds: ds 1 ; Stores seconds
 PowerPercent: ds 1 ; Power% for Oven, 1 = 10%, 2 = 20% ... 10 = 100%. Using PWM
 state: ds 1
 
-temp_soak: ds 1
+temp_soak: ds 2
 time_soak: ds 1
 
-temp_refl: ds 1
+temp_refl: ds 2
 time_refl: ds 1
 
 temp_cool: ds 1
@@ -369,11 +369,13 @@ MainProgram:
 	mov seconds, #0
     mov state, #0
     ;;; TEST VALUES
-    mov temp_soak, #0x30
-    mov time_soak, #0x20
-    mov temp_refl, #0x30
-    mov time_refl, #0x20
-    mov temp_cool, #0x30
+    mov temp_soak + 0, #100
+    mov temp_soak + 1, #0
+    
+    mov time_soak, #0x60
+    mov temp_refl, #220
+    mov time_refl, #0x45
+    mov temp_cool, #0x60
     ;;;
     setb EA   ; Enable Global interrupts
     
@@ -430,7 +432,7 @@ state1:
     cjne a, #1, state2
 
     mov x+0, temp_soak + 0
-    mov x+1, #0
+    mov x+1, temp_soak + 1
     mov x+2, #0
     mov x+3, #0
 
@@ -443,7 +445,7 @@ state1:
     jnb mf, state1_done
 
     ;State Transition from 1 -> 2
-    mov PowerPercent, #0x02
+    mov PowerPercent, #0x01
     mov seconds, #0
     mov state, #2
 state1_done:
@@ -453,10 +455,7 @@ state2:
     mov a, state
     cjne a, #2, state3
 
-    Set_Cursor(1,15)
-    Display_BCD(time_soak)
-    mov a, time_soak
-    mov x+0, a
+    mov x+0, time_soak
     mov x+1, #0
     mov x+2, #0
     mov x+3, #0
@@ -481,7 +480,7 @@ state3:
     cjne a, #3, state4
 
     mov x+0, temp_refl + 0
-    mov x+1, #0
+    mov x+1, temp_refl + 1
     mov x+2, #0
     mov x+3, #0
 
