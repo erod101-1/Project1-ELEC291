@@ -35,6 +35,7 @@ SHIFT_BUTTON	    equ P0.6 ; hold to decrement
 OVEN_PIN            equ P1.1 ; output pin connected to the SSR
 START_BUTTON        equ P1.2 ; start button from state 0 -> 1
 
+
 LCD_RS  equ P3.2
 ; LCD_RW equ Px.x ; Always grounded
 LCD_E   equ P3.3
@@ -46,16 +47,18 @@ LCD_D7  equ P3.7
 ; They are used for Bit-Bang SPI, in Mode(0,0)
 CE_ADC  EQU P2.0 ; Slave select / Enable
 MY_MOSI EQU P2.1 ; Master out / Slave in
-MY_MISO EQU P2.2 ; Master in / Slave out
-MY_SCLK EQU P2.3 ; Serial Clock
+MY_MISO EQU P2.5 ; Master in / Slave out
+MY_SCLK EQU P2.7 ; Serial Clock
 
 ; The pins used for SPI (SPEAKER)
-SPEAKER_FLASH_CE  EQU  P2.5
-SPEAKER_MY_MOSI   EQU  P2.4 
-SPEAKER_MY_MISO   EQU  P2.1
-SPEAKER_MY_SCLK   EQU  P2.0 
+SPEAKER_FLASH_CE  EQU  P1.6
+SPEAKER_MY_MOSI   EQU  P1.4
+SPEAKER_MY_MISO   EQU  P1.3
+SPEAKER_MY_SCLK   EQU  P1.5
 
-SPEAKER           EQU P2.6 ; Used with a MOSFET to turn off speaker when not in use
+SPEAKER_DAC       EQU P2.3 
+;RESERVED EMPTY PIN (P2.2)
+SPEAKER           EQU P1.0 ; Used with a MOSFET to turn off speaker when not in use
 
 ; Commands supported by the SPI flash memory according to the datasheet
 WRITE_ENABLE      EQU 0x06  ; Address:0 Dummy:0 Num:0
