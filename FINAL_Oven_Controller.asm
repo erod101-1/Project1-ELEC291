@@ -559,9 +559,9 @@ ret
 
 Load_Defaults:
     mov soak_temp, #0x64 ;100 HEX
-    mov soak_time, #0x60 ;60 DECIMAL
+    mov soak_time, #0x0A ;10 HEX
     mov refl_temp, #0xC8 ;200 HEX
-    mov refl_time, #0x45 ;45 DECIMAL
+    mov refl_time, #0x0A ;10 HEX
 ret
 
 getbyte mac
@@ -640,8 +640,8 @@ mov x+0,channel_0_voltage+0
 
     mov bcd,x ; move result into x
     mov a, x
-    da a
-    mov temp_result,a
+    ;da a
+    mov temp_result, a
 
     lcall hex2bcd ;convert x to BCD
     lcall Display_10_digit_BCD
@@ -953,10 +953,14 @@ state0: ;Idle
     cjne a, #0, state1
 
     mov PowerPercent, #0
-    jb START_BUTTON, state0_done
+    ;jb START_BUTTON, state0_done
+    ;Wait_Milli_Seconds(#50)
+	;jb START_BUTTON, state0_done
+	;jnb START_BUTTON, $
+    jb INC_DEC, state0_done
     Wait_Milli_Seconds(#50)
-	jb START_BUTTON, state0_done
-	jnb START_BUTTON, $
+	jb INC_DEC, state0_done
+	jnb INC_DEC, $
 
     ;State Transition from 0 -> 1
     mov state, #1
@@ -983,7 +987,7 @@ state1:
     jnb mf, state1_done
 
     ;State Transition from 1 -> 2
-    mov PowerPercent, #0x02
+    mov PowerPercent, #0x01
     mov seconds, #0
     mov state, #2
 state1_done:
@@ -993,20 +997,28 @@ state2:
     mov a, state
     cjne a, #2, state3
 
-    Set_Cursor(1,15)
-    Display_BCD(soak_time)
-    mov a, soak_time
-    mov x+0, a
+    mov bcd, seconds
+    lcall bcd2hex
     mov x+1, #0
     mov x+2, #0
     mov x+3, #0
 
-    mov y+0, seconds + 0
+    mov y+0, soak_time
     mov y+1, #0
     mov y+2, #0
     mov y+3, #0
 
-    lcall x_lt_y
+    ;mov x+0, soak_time
+    ;mov x+1, #0
+    ;mov x+2, #0
+    ;mov x+3, #0
+
+    ;mov y+0, seconds + 0
+    ;mov y+1, #0
+    ;mov y+2, #0
+    ;mov y+3, #0
+
+    lcall x_gt_y
     jnb mf, state2_done
 
     ;State transition from 2 -> 3
@@ -1085,5 +1097,10 @@ state5:
 
 state5_done:
     ljmp forever
+
+;; THIS IS WHERE SOUND WILL GO
+FSM2:
+    ; sound loop
+    ; jmp back to forever
 
 END
