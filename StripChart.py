@@ -5,13 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sys, time, math
+import pandas as pd
+
 # configure the serial port
 
-class InputParamsGUI:
+class OVEN_REFLOW_GUI:
     def __init__(self, master):
         self.master = master
         master.title("Input Parameters")
-
         # Create labels and input fields for each parameter
         self.com_label = tk.Label(master, text="Enter the COM port to read from:")
         self.com_label.grid(row=0, column=0)
@@ -33,6 +34,7 @@ class InputParamsGUI:
         self.submit_button.grid(row=3, column=1)
         self.exit_button = tk.Button(master,text="Exit",command=self.exit_code)
         self.exit_button.grid(row=4, column=1)
+    
     def submit_params(self):
         com_value = self.com_entry.get()
         mintemp_value = self.mintemp_entry.get()
@@ -40,10 +42,10 @@ class InputParamsGUI:
         main(com_value, mintemp_value, maxtemp_value)
     def exit_code(self):
         self.master.destroy()
-   
         
+     
 def main(com_value, mintemp_value, maxtemp_value):
-        com_value = str(com_value)
+       
         ser = serial.Serial( 
             port=com_value,
             baudrate=115200, 
@@ -60,40 +62,38 @@ def main(com_value, mintemp_value, maxtemp_value):
             while True:
                t+=1
                val=ser.readline()
-
-
                val = int(val)
                yield t, val
-
+        t_data = []
+        val_data = []
+        
         def run(data):
             # update the data
             t,y = data
             if t>-1:
+                t_data.append(t)
                 xdata.append(t)
+                val_data.append(y)
                 ydata.append(y)
                 if t>xsize: # Scroll to the left.
                     ax.set_xlim(t-xsize, t)
                 line.set_data(xdata, ydata)
             return line
-
-        def on_close_figure(event):
-            sys.exit(0)
-     
+        def plot_data():  
+            plt.plot(t_data, val_data)
+            plt.xlabel('Time')
+            plt.ylabel('Value')
+            plt.xlim(min(t_data), max(t_data))
+            plt.ylim(10, 240)
+            plt.plot(t_data, val_data)  # Add line plot for t vs time
+           
         def on_key_press(event):
-            if event.key == ' ':
-                average_temp = sum(ydata)/len(ydata)
-                print("Average temperature until instant:", average_temp, " C")
             if event.key == 'q':
                 ani.event_source.stop()
-                average_temp = sum(ydata)/len(ydata)
-                print("Average temperature over the whole period: ", average_temp, " C")
-                s_dev = np.std(ydata)
-                print("Standard Deviation over the period: ",s_dev, " ")
-            if event.key == 'v':
-                s_dev = np.std(ydata)
-                print("Standard Deviation at up until instant: ",s_dev)
-
-
+                plot_data()
+        def on_close_figure(event):
+            sys.exit(0)
+            
         data_gen.t = -1
         fig = plt.figure()
         fig.canvas.mpl_connect('close_event', on_close_figure)
@@ -114,7 +114,7 @@ def main(com_value, mintemp_value, maxtemp_value):
 
 # Create the GUI window
 root = tk.Tk()
-input_params_gui = InputParamsGUI(root)
+input_params_gui = OVEN_REFLOW_GUI(root)
 
 # Start the GUI event loop
 root.mainloop()
