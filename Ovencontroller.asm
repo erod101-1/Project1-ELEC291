@@ -46,10 +46,10 @@ seconds: ds 1 ; Stores seconds
 PowerPercent: ds 1 ; Power% for Oven, 1 = 10%, 2 = 20% ... 10 = 100%. Using PWM
 state: ds 1
 
-temp_soak: ds 2
+temp_soak: ds 1
 time_soak: ds 1
 
-temp_refl: ds 2
+temp_refl: ds 1
 time_refl: ds 1
 
 temp_cool: ds 1
@@ -234,7 +234,6 @@ Do_Something_With_Result:
 
     mov bcd,x ; move result into x
     mov a, x
-    da a
     mov temp_result,a
 
     lcall hex2bcd ;convert x to BCD
@@ -336,6 +335,7 @@ IncSeconds:
 	da a
 	mov seconds, a
 	mov a, PowerPercent
+    setb OvenPin
 	cjne a, #0x00, OvenOn
 	ljmp Inc_Done
 
@@ -368,15 +368,16 @@ MainProgram:
     mov tenth_seconds, #0
 	mov seconds, #0
     mov state, #0
+
     ;;; TEST VALUES
-    mov temp_soak + 0, #100
-    mov temp_soak + 1, #0
-    
-    mov time_soak, #0x60
-    mov temp_refl, #220
-    mov time_refl, #0x45
-    mov temp_cool, #0x60
-    ;;;
+    mov temp_soak, #0x64 ;100 HEX
+    mov time_soak, #0x60 ;60 DECIMAL
+
+    mov temp_refl, #0xC8 ;200 HEX
+    mov time_refl, #0x45 ;45 DECIMAL
+
+    mov temp_cool, #0x3C ;60 HEX
+
     setb EA   ; Enable Global interrupts
     
     Set_Cursor(1,1)
@@ -422,7 +423,7 @@ state0: ;Idle
 
     ;State Transition from 0 -> 1
     mov state, #1
-    mov PowerPercent, #0x10
+    mov PowerPercent, #0x0A
     
 state0_done: ;Ramp
     ljmp forever
@@ -431,8 +432,8 @@ state1:
     mov a, state
     cjne a, #1, state2
 
-    mov x+0, temp_soak + 0
-    mov x+1, temp_soak + 1
+    mov x+0, temp_soak
+    mov x+1, #0
     mov x+2, #0
     mov x+3, #0
 
@@ -469,7 +470,7 @@ state2:
     jnb mf, state2_done
 
     ;State transition from 2 -> 3
-    mov PowerPercent, #0x10
+    mov PowerPercent, #0x0A
 
     mov state, #3
 state2_done:
@@ -479,8 +480,8 @@ state3:
     mov a, state
     cjne a, #3, state4
 
-    mov x+0, temp_refl + 0
-    mov x+1, temp_refl + 1
+    mov x+0, temp_refl
+    mov x+1, #0
     mov x+2, #0
     mov x+3, #0
 
@@ -542,7 +543,7 @@ state5:
     ;State transition from 5 -> 0
     mov state, #0
     mov PowerPercent, #0x00
-
+    
 state5_done:
     ljmp forever
 
