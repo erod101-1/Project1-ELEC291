@@ -57,6 +57,7 @@ temp_cool: ds 1
 BSEG
 mf: dbit 1
 tenth_seconds_flag: dbit 1 ; Set to one in the ISR every time 100 ms had passed
+seconds_flag: dbit 1 
 cseg
 
 ;********** CONFIGURATION **********;
@@ -223,16 +224,10 @@ Do_Something_With_Result:
   	
 	load_y(4096)
 	lcall mul32
-	
-	load_y(300)
-	lcall mul32
 
-	load_y(1023)
+	load_y(13299)
 	lcall div32
     
-	load_y(3900)
-	lcall div32
-	
 	load_y(22)
 	lcall add32
    
@@ -260,15 +255,7 @@ Display_10_digit_BCD:
     Display_BCD(bcd+1)
     Display_BCD(bcd+0)
     ret
-;Display_10_digit_BCD:
-;    Set_Cursor(1, 9)
-;    Display_BCD(bcd+4)
-;    Display_BCD(bcd+3)
-;    Display_BCD(bcd+2)
-;    Display_BCD(bcd+1)
-;    Display_BCD(bcd+0)
-;    ret
-
+    
 Timer2_Init:
 	mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
 	mov TH2, #high(TIMER2_RELOAD)
@@ -318,12 +305,13 @@ Inc_Done:
 
 	;1/10 Seconds Increment
 	mov a, tenth_seconds
-	cjne a, #0x9, IncTenthSeconds
+	cjne a, #0x09, IncTenthSeconds
     mov a, #0 
     da a
     mov tenth_seconds, a
 
 	;Seconds Increment
+    setb seconds_flag
 	mov 	a, Seconds
     cjne 	a, #0x99, IncSeconds ; if Seconds != 59, then seconds++
     mov 	a, #0
@@ -381,11 +369,11 @@ MainProgram:
 	mov seconds, #0
     mov state, #0
     ;;; TEST VALUES
-    mov temp_soak, #100
-    mov time_soak, #30
-    mov temp_refl, #125
-    mov time_refl, #20
-    mov temp_cool, #60
+    mov temp_soak, #0x30
+    mov time_soak, #0x20
+    mov temp_refl, #0x30
+    mov time_refl, #0x20
+    mov temp_cool, #0x30
     ;;;
     setb EA   ; Enable Global interrupts
     
@@ -394,11 +382,9 @@ MainProgram:
     lcall INI_SPI
 
 forever:
-    jnb tenth_seconds_flag, GoToState0
+    jnb tenth_seconds_flag, GoToState0 
 
     Read_ADC_Channel(0)
-    ;lcall Wait10us
-    ;lcall Average_CH0
     lcall Do_Something_With_Result
 
     mov channel_0_voltage+1, R7 ;low
@@ -434,7 +420,7 @@ state0: ;Idle
 
     ;State Transition from 0 -> 1
     mov state, #1
-    mov PowerPercent, #10
+    mov PowerPercent, #0x10
     
 state0_done: ;Ramp
     ljmp forever
@@ -443,13 +429,21 @@ state1:
     mov a, state
     cjne a, #1, state2
 
-    mov a, temp_soak
-    clr c
-    subb a, temp_result
-    jnc state1_done
+    mov x+0, temp_soak + 0
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    mov y+0, temp_result + 0
+    mov y+1, temp_result + 1
+    mov y+2, temp_result + 2
+    mov y+3, temp_result + 3
+
+    lcall x_lt_y
+    jnb mf, state1_done
 
     ;State Transition from 1 -> 2
-    mov PowerPercent, #2
+    mov PowerPercent, #0x02
     mov seconds, #0
     mov state, #2
 state1_done:
@@ -459,13 +453,24 @@ state2:
     mov a, state
     cjne a, #2, state3
 
+    Set_Cursor(1,15)
+    Display_BCD(time_soak)
     mov a, time_soak
-    clr c
-    subb a, seconds
-    jnc state2_done
+    mov x+0, a
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    mov y+0, seconds + 0
+    mov y+1, #0
+    mov y+2, #0
+    mov y+3, #0
+
+    lcall x_lt_y
+    jnb mf, state2_done
 
     ;State transition from 2 -> 3
-    mov PowerPercent, #10
+    mov PowerPercent, #0x10
 
     mov state, #3
 state2_done:
@@ -475,14 +480,22 @@ state3:
     mov a, state
     cjne a, #3, state4
 
-    mov a, temp_refl
-    clr c
-    subb a, temp_result
-    jnc state3_done
+    mov x+0, temp_refl + 0
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    mov y+0, temp_result + 0
+    mov y+1, temp_result + 1
+    mov y+2, temp_result + 2
+    mov y+3, temp_result + 3
+
+    lcall x_lt_y
+    jnb mf, state3_done
 
     ;State transition from 3 -> 4
     mov Seconds, #0
-    mov PowerPercent, #2
+    mov PowerPercent, #0x02
     mov state, #4
 state3_done:
     ljmp forever
@@ -491,13 +504,21 @@ state4:
     mov a, state
     cjne a, #4, state5
 
-    mov a, time_refl
-    clr c
-    subb a, seconds
-    jnc state4_done
+    mov x+0, time_refl + 0
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
+
+    mov y+0, seconds + 0
+    mov y+1, #0
+    mov y+2, #0
+    mov y+3, #0
+
+    lcall x_lt_y
+    jnb mf, state4_done
 
     ;State transition from 4 -> 5
-    mov PowerPercent, #0    
+    mov PowerPercent, #0x00    
     mov state, #5
 state4_done:
     ljmp forever
@@ -506,19 +527,22 @@ state5:
     mov a, state
     cjne a, #5, state5_done
 
-    mov a, temp_result
-    clr c
-    subb a, temp_cool
-    jnc state5_done
+    mov x+0, temp_cool + 0
+    mov x+1, #0
+    mov x+2, #0
+    mov x+3, #0
 
-    ;mov a, temp_cool
-    ;clr c
-    ;subb a, temp_result
-    ;jc state5_done
+    mov y+0, temp_result + 0
+    mov y+1, temp_result + 1
+    mov y+2, temp_result + 2
+    mov y+3, temp_result + 3
+
+    lcall x_gt_y
+    jnb mf, state5_done
 
     ;State transition from 5 -> 0
     mov state, #0
-    mov PowerPercent, #0
+    mov PowerPercent, #0x00
 
 state5_done:
     ljmp forever

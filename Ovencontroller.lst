@@ -1,4 +1,4 @@
-                109   $LIST
+                110   $LIST
                  -1   $include(LCD_4bit.inc)
 0081              1   cseg
 0081              2   
@@ -212,6 +212,6 @@
                 201   	pop acc
                 202   endmac
 012D            203   
-                113   $LIST
+                114   $LIST
                  -1   $include(math32.inc)
                 546   $LIST
