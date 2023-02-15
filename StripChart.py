@@ -73,7 +73,7 @@ def main(com_value, mintemp_value, maxtemp_value):
             if t>-1:
                 t_data.append(t)
                 xdata.append(t)
-                val_data.append(y)
+                val_data.append(t)
                 ydata.append(y)
                 if t>xsize: # Scroll to the left.
                     ax.set_xlim(t-xsize, t)
