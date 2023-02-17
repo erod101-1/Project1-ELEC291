@@ -700,7 +700,7 @@ Do_Something_With_Result:
     mov x+2,#0
     mov x+3,#0
   	
-	load_y(4096)
+	load_y(4650)
 	lcall mul32
 
 	load_y(13299)
