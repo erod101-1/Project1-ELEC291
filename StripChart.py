@@ -7,7 +7,7 @@ import matplotlib.animation as animation
 import sys, time, math
 import pandas as pd
 
-# configure the serial port
+# configure the serial port/
 
 class OVEN_REFLOW_GUI:
     def __init__(self, master):
